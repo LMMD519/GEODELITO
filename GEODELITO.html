@@ -1,0 +1,1476 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GEODELITO</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="author" content="LMMD">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: consola de sala de situación — barra de mando fija, filtros a la izquierda, lectura de arriba (resumen) hacia abajo (detalle) */
+:root{
+  --bg:#E9EDF0; --surface:#FFFFFF; --surface-2:#F3F6F8; --ink:#14202A; --muted:#5A6877; --line:#D3DBE2;
+  --accent:#0E6A7E; --accent-ink:#FFFFFF; --accent-soft:#D7ECF0; --signal:#C9691E;
+  --good:#2F7D5B; --bad:#B23A32; --heat:#C9441F; --map-bg:#DCE3E8;
+  --g0:#C9691E; --g1:#B23A32; --g2:#6E54A8; --g3:#2F7D5B; --g4:#6A7887;
+  --shadow:0 1px 2px rgba(20,32,42,.06),0 8px 24px rgba(20,32,42,.06);
+  --f-display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0D1317; --surface:#141C22; --surface-2:#1A242B; --ink:#E2E9EE; --muted:#93A2AF; --line:#28343D;
+  --accent:#4FB4C8; --accent-ink:#06181D; --accent-soft:#16343B; --signal:#E89A52;
+  --good:#5BBF8F; --bad:#E46A60; --heat:#F0703F; --map-bg:#1A2329;
+  --g0:#E89A52; --g1:#E46A60; --g2:#A58BE0; --g3:#5BBF8F; --g4:#93A2AF;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0D1317; --surface:#141C22; --surface-2:#1A242B; --ink:#E2E9EE; --muted:#93A2AF; --line:#28343D;
+  --accent:#4FB4C8; --accent-ink:#06181D; --accent-soft:#16343B; --signal:#E89A52;
+  --good:#5BBF8F; --bad:#E46A60; --heat:#F0703F; --map-bg:#1A2329;
+  --g0:#E89A52; --g1:#E46A60; --g2:#A58BE0; --g3:#5BBF8F; --g4:#93A2AF;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25); color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{background:var(--bg)}
+body{color:var(--ink);font:14.5px/1.5 var(--f-body);-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+button,select,input{font:inherit;color:inherit}
+h1,h2,h3{font-family:var(--f-display);font-weight:600;letter-spacing:.01em;margin:0;text-wrap:balance}
+.mono{font-family:var(--f-mono);font-size:.86em}
+.num{font-variant-numeric:tabular-nums}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+a{color:var(--accent)}
+
+/* ---------- barra superior ---------- */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:900;background:var(--surface);border-bottom:1px solid var(--line)}
+.top-in{max-width:1560px;margin:0 auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand svg{flex:none}
+.brand b{font-family:var(--f-display);font-size:24px;line-height:1;letter-spacing:.06em;display:block}
+.brand small{display:block;color:var(--muted);font-size:11.5px;line-height:1.2;letter-spacing:.02em}
+.dev{flex:none;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.12em;border:1px solid var(--line);border-radius:4px;padding:2px 6px;color:var(--muted);white-space:nowrap}
+.dev b{color:var(--ink);font-weight:500}
+.acts{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:7px 11px;cursor:pointer;font-size:13.5px;font-weight:500;white-space:nowrap;line-height:1.2}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.danger:hover{border-color:var(--bad);color:var(--bad)}
+.btn svg{width:16px;height:16px;flex:none}
+.only-m{display:none}
+details.menu{position:relative}
+details.menu summary{list-style:none}
+details.menu summary::-webkit-details-marker{display:none}
+details.menu .pop{position:absolute;right:0;top:calc(100% + 6px);background:var(--surface);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:6px;display:grid;min-width:220px;z-index:950}
+details.menu .pop button{text-align:left;border:0;background:none;padding:8px 10px;border-radius:6px;cursor:pointer}
+details.menu .pop button:hover{background:var(--surface-2)}
+details.menu .pop small{display:block;color:var(--muted);font-size:11.5px}
+
+/* ---------- estructura ---------- */
+.shell{max-width:1560px;margin:0 auto;display:grid;grid-template-columns:288px minmax(0,1fr);gap:20px;padding-block:18px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{display:grid;gap:18px;min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.sec-h{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.sec-h h2{font-size:19px;text-transform:uppercase;letter-spacing:.06em}
+.sec-h .hint{color:var(--muted);font-size:12.5px}
+.sec-h .right{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.empty{color:var(--muted);font-size:13.5px;padding:10px 0}
+
+/* ---------- filtros ---------- */
+aside.filters{position:sticky;top:calc(env(safe-area-inset-top,0px) + 74px);align-self:start;max-height:calc(100vh - 92px);overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:grid;gap:16px;scrollbar-width:thin}
+.fl-h{display:flex;align-items:center;justify-content:space-between}
+.fl-h h2{font-size:17px;text-transform:uppercase;letter-spacing:.08em}
+.fg{display:grid;gap:7px}
+.fg>label,.fg>.lab{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.inp,select.inp{width:100%;border:1px solid var(--line);background:var(--surface-2);border-radius:7px;padding:8px 10px;font-size:13.5px}
+.inp:focus{border-color:var(--accent);outline:none}
+.seg{display:flex;flex-wrap:wrap;gap:4px}
+.seg button{border:1px solid var(--line);background:var(--surface-2);border-radius:6px;padding:5px 9px;font-size:12.5px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface-2);border-radius:999px;padding:3px 9px;font-size:12px;cursor:pointer;line-height:1.5}
+.chip:hover{border-color:var(--accent)}
+.chip .dot{width:8px;height:8px;border-radius:50%;flex:none}
+.chip[aria-pressed="false"]{opacity:.45;text-decoration:line-through}
+.gtog{display:grid;gap:4px}
+.gtog button{display:grid;grid-template-columns:12px 1fr auto;gap:8px;align-items:center;text-align:left;border:1px solid transparent;background:none;border-radius:6px;padding:5px 6px;cursor:pointer;font-size:13px}
+.gtog button:hover{background:var(--surface-2)}
+.gtog button .sw{width:12px;height:12px;border-radius:3px}
+.gtog button[aria-pressed="false"]{opacity:.4}
+.gtog button[aria-pressed="false"] .sw{background:transparent!important;border:1.5px solid var(--muted)}
+.range2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.range2 input{width:100%;accent-color:var(--accent)}
+.rv{font-family:var(--f-mono);font-size:12px;color:var(--ink)}
+.dates{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.dates input{padding:6px 7px;font-size:12.5px}
+.quick{display:flex;flex-wrap:wrap;gap:4px}
+.active-f{display:flex;flex-wrap:wrap;gap:5px}
+.active-f .chip{background:var(--accent-soft);border-color:transparent}
+.scrim{display:none}
+
+/* ---------- banner + KPIs ---------- */
+.banner{display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:var(--accent-soft);border-radius:10px;padding:12px 16px}
+.banner p{margin:0;flex:1 1 320px;min-width:0}
+.banner b{font-weight:600}
+.mapchips{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.mapchips span{font-size:11.5px;border-radius:4px;padding:1px 6px;background:var(--surface);border:1px solid var(--line)}
+.mapchips span.miss{border-style:dashed;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.kpi{all:unset;box-sizing:border-box;cursor:pointer;padding:14px 16px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);display:grid;gap:2px;align-content:start;min-width:0;margin-bottom:-1px}
+.kpi:hover{background:var(--surface-2)}
+.kpi:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.kpi .k{font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:600}
+.kpi .v{font-family:var(--f-display);font-size:32px;font-weight:600;line-height:1.05;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.kpi .v.sm{font-size:23px;padding-block:4px 3px}
+.kpi .s{font-size:12.5px;color:var(--muted)}
+.up{color:var(--bad)} .down{color:var(--good)}
+
+/* ---------- hallazgos ---------- */
+.find{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px 22px;margin:0;padding:0;list-style:none}
+.find li{display:grid;grid-template-columns:22px 1fr;gap:8px;font-size:13.8px;line-height:1.45}
+.find li i{font-style:normal;font-family:var(--f-mono);font-size:11px;color:var(--signal);padding-top:2px}
+.find b{font-weight:600}
+
+/* ---------- mapa ---------- */
+.mapwrap{position:relative;border-radius:8px;overflow:hidden;border:1px solid var(--line)}
+#map{height:min(560px,68vh);min-height:360px;background:var(--map-bg);background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:48px 48px}
+.mapnote{position:absolute;left:10px;right:10px;bottom:10px;z-index:1000;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:12.5px;box-shadow:var(--shadow)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:12.5px;align-items:center}
+.legend .lg{display:inline-flex;align-items:center;gap:6px}
+.legend .lg i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.heatbar{width:120px;height:8px;border-radius:4px;background:linear-gradient(90deg,#ffe08a,#f9a03f,#e2462e,#8c0d26)}
+.clu{display:grid;place-items:center}
+.clu div{width:100%;height:100%;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--signal) 30%,transparent);}
+.clu span{width:72%;height:72%;border-radius:50%;display:grid;place-items:center;background:var(--signal);color:#fff;font:600 12px var(--f-body)}
+.pop-t{font-family:var(--f-display);font-size:16px;font-weight:600}
+.pop-s{color:var(--muted);font-size:12px}
+
+/* Leaflet esencial (CSS en línea) */
+.leaflet-pane,.leaflet-tile,.leaflet-marker-icon,.leaflet-marker-shadow,.leaflet-tile-container,.leaflet-pane>svg,.leaflet-pane>canvas,.leaflet-zoom-box,.leaflet-image-layer,.leaflet-layer{position:absolute;left:0;top:0}
+.leaflet-container{overflow:hidden;-webkit-tap-highlight-color:transparent;font-family:var(--f-body);font-size:12px;touch-action:pan-x pan-y}
+.leaflet-container img.leaflet-tile,.leaflet-container .leaflet-overlay-pane svg,.leaflet-container .leaflet-marker-pane img,.leaflet-container img{max-width:none!important;max-height:none!important}
+.leaflet-tile{user-select:none;visibility:hidden}.leaflet-tile-loaded{visibility:inherit}
+.leaflet-zoom-animated{transform-origin:0 0}
+.leaflet-zoom-anim .leaflet-zoom-animated{transition:transform .25s cubic-bezier(0,0,.25,1)}
+.leaflet-zoom-anim .leaflet-tile,.leaflet-pan-anim .leaflet-tile{transition:none}
+.leaflet-zoom-anim .leaflet-zoom-hide{visibility:hidden}
+.leaflet-pane{z-index:400}.leaflet-tile-pane{z-index:200}.leaflet-overlay-pane{z-index:400}.leaflet-shadow-pane{z-index:500}.leaflet-marker-pane{z-index:600}.leaflet-tooltip-pane{z-index:650}.leaflet-popup-pane{z-index:700}
+.leaflet-map-pane canvas{z-index:100}.leaflet-map-pane svg{z-index:200}
+.leaflet-control{position:relative;z-index:800;pointer-events:auto;float:left;clear:both}
+.leaflet-top,.leaflet-bottom{position:absolute;z-index:1000;pointer-events:none}
+.leaflet-top{top:0}.leaflet-right{right:0}.leaflet-bottom{bottom:0}.leaflet-left{left:0}
+.leaflet-right .leaflet-control{float:right;margin-right:10px}.leaflet-top .leaflet-control{margin-top:10px}.leaflet-left .leaflet-control{margin-left:10px}
+.leaflet-bottom .leaflet-control-attribution{margin:0}
+.leaflet-grab{cursor:grab}.leaflet-dragging .leaflet-grab{cursor:grabbing}
+.leaflet-interactive{cursor:pointer}
+.leaflet-bar{border-radius:7px;border:1px solid var(--line);overflow:hidden;box-shadow:var(--shadow)}
+.leaflet-bar a{display:block;width:32px;height:32px;line-height:32px;text-align:center;text-decoration:none;color:var(--ink);background:var(--surface);font:600 18px var(--f-body);border-bottom:1px solid var(--line)}
+.leaflet-bar a:last-child{border-bottom:0}
+.leaflet-bar a:hover{background:var(--surface-2)}
+.leaflet-control-attribution{background:color-mix(in srgb,var(--surface) 85%,transparent);padding:0 6px;font-size:10.5px;color:var(--muted)}
+.leaflet-control-attribution a{color:var(--muted)}
+.leaflet-popup{position:absolute;text-align:center;margin-bottom:20px}
+.leaflet-popup-content-wrapper{padding:1px;text-align:left;border-radius:9px;background:var(--surface);color:var(--ink);box-shadow:var(--shadow);border:1px solid var(--line)}
+.leaflet-popup-content{margin:11px 14px;line-height:1.4;min-width:200px}
+.leaflet-popup-tip-container{width:40px;height:20px;position:absolute;left:50%;margin-top:-1px;margin-left:-20px;overflow:hidden;pointer-events:none}
+.leaflet-popup-tip{width:17px;height:17px;padding:1px;margin:-10px auto 0;transform:rotate(45deg);background:var(--surface)}
+.leaflet-container a.leaflet-popup-close-button{position:absolute;top:2px;right:4px;width:24px;height:24px;font:18px/24px var(--f-body);color:var(--muted);text-decoration:none;text-align:center}
+.leaflet-tooltip{position:absolute;padding:6px 9px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:6px;white-space:nowrap;pointer-events:none;box-shadow:var(--shadow);font-size:12px}
+.leaflet-cluster-anim .leaflet-marker-icon{transition:transform .3s ease-out,opacity .3s ease-in}
+
+/* ---------- gráficos ---------- */
+.bars{display:grid;gap:7px}
+.bar{all:unset;box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;cursor:pointer;padding:3px 4px;border-radius:5px}
+.bar:hover{background:var(--surface-2)}
+.bar:focus-visible{outline:2px solid var(--accent)}
+.bar .l{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bar .n{font-family:var(--f-mono);font-size:12px;color:var(--muted);text-align:right}
+.bar .t{grid-column:1/-1;height:8px;background:var(--surface-2);border-radius:4px;overflow:hidden}
+.bar .t i{display:block;height:100%;border-radius:4px;background:var(--accent)}
+.bar.on{background:var(--accent-soft)}
+.mx-scroll{overflow-x:auto}
+.mx{display:grid;grid-template-columns:38px repeat(24,minmax(16px,1fr));gap:2px;min-width:560px}
+.mx .hd{font-family:var(--f-mono);font-size:10px;color:var(--muted);text-align:center}
+.mx .dl{font-size:11.5px;color:var(--muted);display:flex;align-items:center}
+.mx button{all:unset;cursor:pointer;aspect-ratio:1.25;border-radius:3px;min-height:15px}
+.mx button:hover{outline:2px solid var(--ink)}
+.mx-leg{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);margin-top:8px}
+.mx-leg .ramp{width:120px;height:8px;border-radius:4px;background:linear-gradient(90deg,var(--surface-2),var(--heat))}
+.svgbox{width:100%;overflow-x:auto}
+.svgbox svg{display:block}
+.ax{fill:var(--muted);font:11px var(--f-mono)}
+.gridl{stroke:var(--line);stroke-width:1}
+.tsline{fill:none;stroke:var(--accent);stroke-width:2}
+.tsarea{fill:var(--accent);opacity:.14}
+.tsdot{fill:var(--accent)}
+.tshit{fill:transparent;cursor:pointer}
+.tshit:hover{fill:var(--accent);opacity:.12}
+.net-l{fill:var(--ink);font:12px var(--f-body)}
+.net-n{fill:var(--muted);font:10.5px var(--f-mono)}
+.net-p{fill:none;cursor:pointer;opacity:.38}
+.net-p:hover{opacity:.85}
+
+/* ---------- listas de análisis ---------- */
+.rows{display:grid}
+.row{all:unset;box-sizing:border-box;display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 12px;align-items:center;padding:10px 6px;border-bottom:1px solid var(--line);cursor:pointer}
+.row:last-child{border-bottom:0}
+.row:hover{background:var(--surface-2)}
+.row:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.row .rk{font-family:var(--f-display);font-size:22px;font-weight:600;color:var(--muted);width:30px;text-align:center}
+.row .tt{font-weight:600;font-size:13.8px}
+.row .ss{color:var(--muted);font-size:12.5px}
+.row .nn{font-family:var(--f-display);font-size:24px;font-weight:600;text-align:right;line-height:1}
+.row .nn small{display:block;font-family:var(--f-body);font-size:11px;color:var(--muted);font-weight:500}
+.sev{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;border-radius:4px;padding:1px 6px;margin-right:6px;vertical-align:1px}
+.sev.hi{background:color-mix(in srgb,var(--bad) 16%,transparent);color:var(--bad)}
+.sev.md{background:color-mix(in srgb,var(--signal) 18%,transparent);color:var(--signal)}
+.sev.lo{background:var(--surface-2);color:var(--muted)}
+.gtag{display:inline-flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap}
+.gtag i{width:8px;height:8px;border-radius:2px;display:inline-block}
+
+/* ---------- tabla ---------- */
+.tbl-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:13px;min-width:760px}
+th{position:sticky;top:0;background:var(--surface-2);text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;padding:9px 10px;cursor:pointer;white-space:nowrap;border-bottom:1px solid var(--line)}
+th[aria-sort]::after{content:" ↓";color:var(--accent)}
+th[aria-sort="ascending"]::after{content:" ↑"}
+td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:var(--surface-2)}
+td .sub{color:var(--muted);font-size:12px}
+.geo-y{color:var(--good)}.geo-n{color:var(--muted)}
+.more{display:flex;justify-content:center;gap:8px;margin-top:12px;flex-wrap:wrap}
+
+/* ---------- modales ---------- */
+.ov{position:fixed;inset:0;z-index:2000;background:color-mix(in srgb,#05090c 55%,transparent);display:grid;place-items:center;padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.sheet{background:var(--surface);border:1px solid var(--line);border-radius:12px;width:min(920px,100%);max-height:100%;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden}
+.sheet.sm{width:min(460px,100%)}
+.sh-h{display:flex;align-items:flex-start;gap:12px;padding:16px 18px 10px;border-bottom:1px solid var(--line)}
+.sh-h h3{font-size:22px;line-height:1.15}
+.sh-h .sub{color:var(--muted);font-size:12.5px;margin-top:3px}
+.sh-h .x{margin-left:auto}
+.sh-b{overflow:auto;padding:14px 18px;flex:1 1 auto;min-height:0}
+.tabs,.sh-h,.sh-f{flex:none}
+.sh-f{display:flex;gap:6px;flex-wrap:wrap;padding:10px 18px;border-top:1px solid var(--line);background:var(--surface-2)}
+.sh-f .sp{flex:1}
+.tabs{display:flex;gap:2px;overflow-x:auto;padding:0 18px;border-bottom:1px solid var(--line)}
+.tabs button{border:0;background:none;padding:9px 12px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;color:var(--muted)}
+.tabs button[aria-selected="true"]{color:var(--ink);border-color:var(--accent);font-weight:600}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px 20px}
+.kv div{min-width:0}
+.kv dt{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.kv dd{margin:2px 0 0;overflow-wrap:anywhere}
+.narr{background:var(--surface-2);border-radius:8px;padding:12px 14px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}
+.narr mark{background:color-mix(in srgb,var(--signal) 28%,transparent);color:inherit;border-radius:2px}
+.why{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.why span{font-size:11px;border-radius:4px;padding:0 6px;background:var(--surface-2);border:1px solid var(--line)}
+.score{font-family:var(--f-mono);font-size:12px;border-radius:5px;padding:2px 7px;background:var(--accent-soft);color:var(--ink)}
+.raw{width:100%;min-width:0;font-size:12.5px}
+.raw td:first-child{color:var(--muted);width:38%;font-family:var(--f-mono);font-size:11.5px}
+.map-tbl{min-width:0}
+.map-tbl td{vertical-align:middle}
+.map-tbl select{max-width:100%}
+.lex{display:grid;gap:10px}
+.lex textarea{width:100%;min-height:54px;border:1px solid var(--line);background:var(--surface-2);border-radius:7px;padding:8px;font:12px/1.5 var(--f-mono);resize:vertical}
+
+/* ---------- carga ---------- */
+.drop{position:fixed;inset:0;z-index:3000;display:grid;place-items:center;background:color-mix(in srgb,var(--accent) 22%,transparent);border:3px dashed var(--accent)}
+.drop div{background:var(--surface);border-radius:12px;padding:24px 28px;font-family:var(--f-display);font-size:24px}
+.busy{position:fixed;inset:0;z-index:3100;display:grid;place-items:center;background:color-mix(in srgb,var(--bg) 70%,transparent)}
+.busy div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px 24px;display:flex;gap:12px;align-items:center;box-shadow:var(--shadow)}
+.spin{width:20px;height:20px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);animation:sp 0.8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:3200;background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:8px;font-size:13.5px;max-width:min(520px,calc(100vw - 32px));box-shadow:var(--shadow)}
+
+footer.foot{max-width:1560px;margin:0 auto;display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;justify-content:space-between;padding-block:18px 28px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));color:var(--muted);font-size:12.5px;border-top:1px solid var(--line)}
+footer.foot .sig{font-family:var(--f-display);font-size:16px;color:var(--ink);letter-spacing:.04em}
+footer.foot .sig b{letter-spacing:.14em}
+
+@media (max-width:1000px){
+  .shell{grid-template-columns:minmax(0,1fr)}
+  .only-m{display:inline-flex}
+  aside.filters{position:fixed;top:0;bottom:0;left:0;z-index:1500;width:min(340px,90vw);max-height:none;border-radius:0 12px 12px 0;transform:translateX(-105%);transition:transform .22s ease;padding-top:calc(14px + env(safe-area-inset-top,0px));padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));padding-left:max(14px,env(safe-area-inset-left,0px))}
+  aside.filters.open{transform:none}
+  .scrim.open{display:block;position:fixed;inset:0;z-index:1400;background:color-mix(in srgb,#05090c 45%,transparent)}
+  .grid2{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:640px){
+  .brand small{display:none}
+  .acts .lbl{display:none}
+  .kpi .v{font-size:28px}
+  .sh-h h3{font-size:19px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true"><path d="M17 2 L30 7 V16 C30 24 24 29.5 17 32 C10 29.5 4 24 4 16 V7 Z" style="fill:var(--accent)"/><circle cx="17" cy="16" r="6.5" style="fill:none;stroke:var(--accent-ink);stroke-width:2"/><circle cx="17" cy="16" r="2" style="fill:var(--accent-ink)"/><path d="M17 6.5 V10 M17 22 V25.5 M7.5 16 H11 M23 16 H26.5" style="stroke:var(--accent-ink);stroke-width:2"/></svg>
+      <div><b>GEODELITO</b><small>Plataforma de análisis geográfico del delito</small></div>
+      <span class="dev" title="Desarrollador">DEV <b>LMMD</b></span>
+    </div>
+    <div class="acts">
+      <button class="btn only-m" id="bFilters" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h18M6 12h12M10 19h4"/></svg><span>Filtros</span> <span id="fCount" class="num"></span></button>
+      <button class="btn primary" id="bLoad" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg><span class="lbl">Cargar Excel</span></button>
+      <button class="btn" id="bAdd" type="button" title="Agregar eventos a la base actual"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg><span class="lbl">Agregar eventos</span></button>
+      <button class="btn" id="bMap" type="button" title="Revisar el mapeo de columnas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h7M4 12h7M4 18h7M15 6h5M15 12h5M15 18h5"/></svg><span class="lbl">Columnas</span></button>
+      <details class="menu" id="mExport">
+        <summary class="btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v12M7 11l5 5 5-5M4 20h16"/></svg><span class="lbl">Exportar</span></summary>
+        <div class="pop">
+          <button type="button" data-act="exp" data-arg="xlsx">Excel (.xlsx)<small>Eventos filtrados con grupo y coordenadas normalizadas</small></button>
+          <button type="button" data-act="exp" data-arg="csv">CSV<small>Compatible con QGIS y ArcGIS</small></button>
+          <button type="button" data-act="exp" data-arg="copy">Copiar CSV<small>Al portapapeles, para pegar en otra hoja</small></button>
+          <button type="button" data-act="exp" data-arg="brief">Copiar informe de hallazgos<small>Texto listo para un parte o informe</small></button>
+        </div>
+      </details>
+      <button class="btn ghost" id="bTheme" type="button" title="Cambiar tema" aria-label="Cambiar tema"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/></svg></button>
+      <button class="btn ghost danger" id="bClear" type="button" title="Eliminar todo" aria-label="Eliminar todo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
+    </div>
+  </div>
+</header>
+
+<input type="file" id="fileMain" accept=".xlsx,.xls,.csv,.txt" hidden>
+<input type="file" id="fileAdd" accept=".xlsx,.xls,.csv,.txt" hidden>
+
+<div class="shell">
+  <aside class="filters" id="filters" aria-label="Filtros">
+    <div class="fl-h"><h2>Filtros</h2><button class="btn ghost" type="button" data-act="reset">Limpiar</button></div>
+    <div class="active-f" id="activeF"></div>
+    <div class="fg">
+      <label for="q">Búsqueda en todos los campos</label>
+      <input class="inp" id="q" type="search" placeholder="moto, banco, 9 mm, GQU-…" autocomplete="off">
+      <div class="chips" id="qSug"></div>
+    </div>
+    <div class="fg">
+      <span class="lab">Periodo</span>
+      <div class="seg" id="segRange">
+        <button type="button" data-r="all" aria-pressed="true">Todo</button>
+        <button type="button" data-r="7" aria-pressed="false">7 d</button>
+        <button type="button" data-r="30" aria-pressed="false">30 d</button>
+        <button type="button" data-r="90" aria-pressed="false">90 d</button>
+      </div>
+      <div class="dates"><input class="inp" type="date" id="dFrom" aria-label="Desde"><input class="inp" type="date" id="dTo" aria-label="Hasta"></div>
+      <div class="hint" style="font-size:11.5px;color:var(--muted)">Los atajos cuentan hacia atrás desde el último evento de la base.</div>
+    </div>
+    <div class="fg">
+      <span class="lab">Grupo tipológico</span>
+      <div class="gtog" id="gTog"></div>
+    </div>
+    <div class="fg"><label for="sMod">Modalidad</label><select class="inp" id="sMod"></select></div>
+    <div class="fg"><label for="sDist">Distrito</label><select class="inp" id="sDist"></select></div>
+    <div class="fg"><label for="sCircuito">Circuito</label><select class="inp" id="sCircuito"></select></div>
+    <div class="fg"><label for="sCanton">Cantón</label><select class="inp" id="sCanton"></select></div>
+    <div class="fg">
+      <span class="lab">Hora del día · <span class="rv" id="hrLbl">00:00–23:59</span></span>
+      <div class="range2"><input type="range" id="h0" min="0" max="23" value="0" aria-label="Hora inicial"><input type="range" id="h1" min="0" max="23" value="23" aria-label="Hora final"></div>
+      <div class="quick">
+        <button class="chip" type="button" data-act="hq" data-arg="0,5">Madrugada</button>
+        <button class="chip" type="button" data-act="hq" data-arg="6,11">Mañana</button>
+        <button class="chip" type="button" data-act="hq" data-arg="12,17">Tarde</button>
+        <button class="chip" type="button" data-act="hq" data-arg="18,23">Noche</button>
+      </div>
+    </div>
+    <div class="fg"><span class="lab">Días de la semana</span><div class="seg" id="segDow"></div></div>
+    <div class="fg"><label for="sArma">Arma</label><select class="inp" id="sArma"></select></div>
+    <div class="fg"><label for="sMov">Movilidad de la víctima</label><select class="inp" id="sMov"></select></div>
+    <div class="fg"><label for="sVic">Víctima</label><select class="inp" id="sVic"></select></div>
+    <div class="fg">
+      <span class="lab">Ubicación</span>
+      <div class="seg" id="segGeo">
+        <button type="button" data-g="all" aria-pressed="true">Todos</button>
+        <button type="button" data-g="1" aria-pressed="false">Con coordenadas</button>
+        <button type="button" data-g="0" aria-pressed="false">Sin coordenadas</button>
+      </div>
+    </div>
+    <button class="btn" type="button" data-act="lex">Ajustar clasificación tipológica</button>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <main>
+    <div class="banner" id="banner"></div>
+
+    <section class="kpis" id="kpis" aria-label="Indicadores"></section>
+
+    <section class="card">
+      <div class="sec-h"><h2>Hallazgos clave</h2><span class="hint">Se recalculan con cada filtro</span></div>
+      <ul class="find" id="find"></ul>
+    </section>
+
+    <section class="card">
+      <div class="sec-h">
+        <h2>Mapa geográfico</h2><span class="hint">Pase el cursor para ver el evento · clic para abrir el expediente</span>
+        <div class="right">
+          <div class="seg" id="segMode">
+            <button type="button" data-m="heat" aria-pressed="true">Calor</button>
+            <button type="button" data-m="pts" aria-pressed="false">Puntos</button>
+            <button type="button" data-m="clu" aria-pressed="false">Clústeres</button>
+          </div>
+          <div class="seg" id="segBase">
+            <button type="button" data-b="osm" aria-pressed="true">Calles</button>
+            <button type="button" data-b="sat" aria-pressed="false">Satélite</button>
+            <button type="button" data-b="dark" aria-pressed="false">Oscuro</button>
+          </div>
+          <button class="btn" type="button" data-act="fit">Encuadrar</button>
+        </div>
+      </div>
+      <div class="mapwrap"><div id="map" role="region" aria-label="Mapa de eventos"></div><div class="mapnote" id="mapNote" hidden></div></div>
+      <div class="legend" id="legend"></div>
+    </section>
+
+    <div class="grid2">
+      <section class="card">
+        <div class="sec-h"><h2>Grupos tipológicos</h2><span class="hint">clic para aislar</span></div>
+        <div class="bars" id="cGroups"></div>
+      </section>
+      <section class="card">
+        <div class="sec-h"><h2>Modalidades</h2><span class="hint">las 10 más frecuentes</span></div>
+        <div class="bars" id="cMods"></div>
+      </section>
+    </div>
+
+    <section class="card">
+      <div class="sec-h"><h2>Matriz día × hora</h2><span class="hint">clic en una celda para filtrar ese día y hora · planificación de patrullajes</span></div>
+      <div class="mx-scroll"><div class="mx" id="mx"></div></div>
+      <div class="mx-leg">menos <span class="ramp"></span> más eventos</div>
+    </section>
+
+    <section class="card">
+      <div class="sec-h"><h2>Evolución temporal</h2><span class="hint" id="tsHint"></span></div>
+      <div class="svgbox" id="ts"></div>
+    </section>
+
+    <div class="grid2">
+      <section class="card">
+        <div class="sec-h"><h2>Series delictivas</h2><span class="hint">mismo modus, zona de ~900 m, separación ≤ 21 días</span></div>
+        <div class="rows" id="series"></div>
+      </section>
+      <section class="card">
+        <div class="sec-h"><h2>Puntos calientes</h2><span class="hint">celdas de ~500 m · tendencia 30 d vs 30 d previos</span></div>
+        <div class="rows" id="hots"></div>
+      </section>
+    </div>
+
+    <div class="grid2">
+      <section class="card">
+        <div class="sec-h"><h2>Distritos</h2><span class="hint">carga delictiva</span></div>
+        <div class="bars" id="cDist"></div>
+      </section>
+      <section class="card">
+        <div class="sec-h"><h2>Red modalidad ↔ distrito</h2><span class="hint">grosor = eventos · clic en un vínculo</span></div>
+        <div class="svgbox" id="net"></div>
+      </section>
+    </div>
+
+    <section class="card" id="noGeoCard">
+      <div class="sec-h"><h2>Eventos sin coordenadas</h2><span class="hint" id="ngHint"></span></div>
+      <div class="chips" id="ngChips" style="margin-bottom:10px"></div>
+      <div class="rows" id="ngList"></div>
+      <div class="more" id="ngMore"></div>
+    </section>
+
+    <section class="card">
+      <div class="sec-h"><h2>Eventos filtrados</h2><span class="hint" id="tHint"></span></div>
+      <div class="tbl-wrap"><table><thead><tr id="tHead"></tr></thead><tbody id="tBody"></tbody></table></div>
+      <div class="more" id="tMore"></div>
+    </section>
+  </main>
+</div>
+
+<footer class="foot">
+  <span class="sig">GEODELITO 2.0 · Desarrollado por <b>LMMD</b></span>
+  <span>Procesamiento 100 % local: los datos no salen de este equipo.</span>
+</footer>
+
+<div id="layer"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.markercluster/1.5.3/leaflet.markercluster.js"></script>
+<script>
+/* =====================================================================
+   GEODELITO 2.0 — Plataforma de análisis geográfico del delito
+   Desarrollador: LMMD
+   Todo el procesamiento ocurre en el navegador.
+   ===================================================================== */
+"use strict";
+const DEV = "LMMD";
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const norm = s => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+const fmt = n => Number(n).toLocaleString("es-EC");
+const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+const DAY = 864e5;
+const DOWS = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+const DOWL = ["lunes","martes","miércoles","jueves","viernes","sábado","domingo"];
+const BANDS = ["Madrugada","Mañana","Tarde","Noche"];
+const band = h => h == null ? null : Math.floor(h / 6);
+const pad = n => String(n).padStart(2, "0");
+const fdate = d => d ? `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}` : "—";
+const iso = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const SMALLW = new Set(["de","del","la","las","los","el","y","a","en","con","por","para","al","e","o"]);
+const cap = s => { s = String(s ?? "").trim(); if (!s) return ""; return s.toLocaleLowerCase("es").split(/(\s+)/).map((w, i) => i && SMALLW.has(w) ? w : w.charAt(0).toLocaleUpperCase("es") + w.slice(1)).join(""); };
+const DOWP = ["lunes","martes","miércoles","jueves","viernes","sábados","domingos"];
+const NOARMA = new Set(["", "ninguna", "ninguno", "sin arma", "no", "n/a", "na", "no aplica", "s/n", "sin informacion", "desconocido"]);
+
+/* ---------- campos y sinónimos (= solo coincidencia exacta) ---------- */
+const FIELDS = [
+  ["fecha","Fecha",["fechainfraccion","fecha","fechahecho","fechadelhecho","fechaevento","fechadelito","fechaincidente","fechaocurrencia","=date"]],
+  ["hora","Hora",["horainfraccion","hora","horahecho","horadelhecho","horaevento","horaocurrencia","=time"]],
+  ["delito","Delito / tipo",["delito","tipodelito","presuntodelito","delitotipo","tipificacion","=infraccion","=tipo","=titulo"]],
+  ["modalidad","Modalidad",["modalidad","modusoperandi","modus","submodalidad","mecanismo"]],
+  ["lat","Latitud",["latitud","=lat","latitude","=y","coordy","coordenaday"]],
+  ["lon","Longitud",["longitud","=lon","=lng","=long","longitude","=x","coordx","coordenadax"]],
+  ["coords","Coordenadas juntas",["coordenadas","=coords","ubicaciongps","=gps","latlon","latlng"]],
+  ["distrito","Distrito",["distrito","nombredistrito","distritopolicial","=dist"]],
+  ["circuito","Circuito",["circuito","nombrecircuito","subcircuito"]],
+  ["canton","Cantón",["canton","nombrecanton","municipio","=ciudad"]],
+  ["provincia","Provincia",["provincia","nombreprovincia","departamento"]],
+  ["hechos","Hechos / relato",["hechos","relato","narrativa","descripcionhechos","relatohechos","descripcion","detalle","observaciones","observacion"]],
+  ["arma","Arma",["arma","tipoarma","armautilizada","armaempleada"]],
+  ["victima","Víctima",["victima","sexovictima","tipovictima","=sexo","=genero"]],
+  ["movilidad","Movilidad de la víctima",["movilidadvictima","movilizacionvictima","movilidad","=medio","mediomovilizacion"]],
+  ["fiscalia","Nº fiscalía / NDD",["fiscalia","=ndd","noticiadelito","numerondd","nrondd","numfiscalia","numerofiscalia","codigofiscalia","expediente"]],
+  ["vehiculo","Vehículo / placa",["placa","placavehiculo","vehiculo","tipovehiculo"]],
+  ["direccion","Dirección",["direccion","direcciondelhecho","=lugar","=sitio","=calle","=ubicacion"]],
+  ["id","Identificador",["=id","idevento","numeroevento","=codigo","=nro","=numero"]]
+];
+const FIELD_NAME = Object.fromEntries(FIELDS.map(f => [f[0], f[1]]));
+
+/* ---------- grupos tipológicos (máx. 5) ---------- */
+const GROUPS = [
+  {name:"Robo y hurto", kw:["robo","hurto","asalto","arranche","sacapintas","escalamiento","forzamiento","descuido","abigeato","sustraccion","sustrajeron","sustrajo","apropiacion","robaron","se llevaron"]},
+  {name:"Vida e integridad", kw:["asesinato","homicidio","sicariato","femicidio","lesiones","lesion","muerte","fallec","herid","secuestro","ataque armado","agresion","violacion","abuso sexual","acoso sexual","rina","bala perdida","plagio","amenaza"]},
+  {name:"Extorsión y estafa", kw:["extorsion","vacuna","estafa","fraude","chantaje","cuento del tio","falso funcionario","suplantacion","falsificacion","abuso de confianza","cobro de cuotas","phishing","venta en linea","transferencia"]},
+  {name:"Drogas y armas", kw:["droga","estupefaciente","sustancias","fiscalizacion","microtrafico","trafico ilicito","marihuana","cocaina","tenencia","porte de arma","porte ilegal","municion","explosivo"]},
+  {name:"Otros delitos", kw:[]}
+];
+const gColor = g => `var(--g${g})`;
+const GHEX = () => { const cs = getComputedStyle(document.documentElement); return [0,1,2,3,4].map(i => cs.getPropertyValue(`--g${i}`).trim() || "#888"); };
+try { const saved = JSON.parse(localStorage.getItem("geodelito.lex") || "null"); if (Array.isArray(saved) && saved.length === 5) saved.forEach((s, i) => { if (s && Array.isArray(s.kw)) { GROUPS[i].kw = s.kw; if (s.name) GROUPS[i].name = s.name; } }); } catch (e) {}
+
+function classify(delN, modN, hecN) {
+  let best = 4, bs = 0;
+  for (let g = 0; g < 4; g++) {
+    let s = 0;
+    for (const k of GROUPS[g].kw) { if (!k) continue; if (delN.includes(k)) s += 3; if (modN.includes(k)) s += 2; if (hecN.includes(k)) s += 1; }
+    if (s > bs) { bs = s; best = g; }
+  }
+  return best;
+}
+
+/* ---------- parseo ---------- */
+function parseHour(v) {
+  if (v == null || v === "") return null;
+  if (v instanceof Date) return v.getHours();
+  if (typeof v === "number") {
+    if (v >= 0 && v < 1) return Math.floor(v * 24 + 1e-6);
+    if (v > 20000) return Math.floor((v % 1) * 24 + 1e-6);
+    if (Number.isInteger(v) && v >= 0 && v <= 23) return v;
+    if (Number.isInteger(v) && v >= 100 && v < 2400) return Math.floor(v / 100);
+    if (v >= 1 && v < 24) return Math.floor(v);
+    return null;
+  }
+  const s = norm(v);
+  if (/^\d{1,2}$/.test(s)) { const h = +s; return h <= 23 ? h : null; }
+  if (/^\d{3,4}$/.test(s)) { const h = Math.floor(+s / 100); return h <= 23 ? h : null; }
+  const m = s.match(/(\d{1,2})\s*[:h.]\s*(\d{2})/);
+  if (!m) return null;
+  let h = +m[1];
+  if (/p\.?\s?m/.test(s) && h < 12) h += 12;
+  if (/a\.?\s?m/.test(s) && h === 12) h = 0;
+  return h >= 0 && h <= 23 ? h : null;
+}
+function mkDate(y, mo, d, rest) {
+  if (y < 1990 || y > 2100 || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+  const dt = new Date(y, mo - 1, d);
+  if (dt.getMonth() !== mo - 1) return null;
+  const tm = rest && rest.match(/(\d{1,2}):(\d{2})/);
+  return {d: dt, h: tm ? parseHour(rest.slice(tm.index)) : null};
+}
+function parseDate(v) {
+  if (v == null || v === "") return null;
+  if (v instanceof Date && !isNaN(v)) return {d: new Date(v.getFullYear(), v.getMonth(), v.getDate()), h: null};
+  if (typeof v === "number") {
+    if (v > 20000 && v < 80000) {
+      const u = new Date(Math.round((v - 25569) * DAY));
+      const frac = v % 1;
+      return {d: new Date(u.getUTCFullYear(), u.getUTCMonth(), u.getUTCDate()), h: frac > 1e-6 ? Math.floor(frac * 24 + 1e-6) : null};
+    }
+    return null;
+  }
+  const s = String(v).trim(); let m;
+  if ((m = s.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/))) return mkDate(+m[1], +m[2], +m[3], s.slice(m[0].length));
+  if ((m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/))) {
+    let a = +m[1], b = +m[2], y = +m[3]; if (y < 100) y += 2000;
+    if (b > 12 && a <= 12) [a, b] = [b, a];
+    return mkDate(y, b, a, s.slice(m[0].length));
+  }
+  if (/^\d{5}(\.\d+)?$/.test(s)) return parseDate(+s);
+  const t = Date.parse(s);
+  if (!isNaN(t)) { const u = new Date(t); return {d: new Date(u.getFullYear(), u.getMonth(), u.getDate()), h: null}; }
+  return null;
+}
+function parseNum(v) {
+  if (typeof v === "number") return v;
+  let s = String(v ?? "").trim().replace(/\s/g, "").replace("−", "-");
+  if (!s) return NaN;
+  if (/^-?\d+,\d+$/.test(s)) s = s.replace(",", ".");
+  return Number(s);
+}
+function fixCoords(lat, lon) {
+  if (!isFinite(lat) || !isFinite(lon)) return null;
+  if (Math.abs(lat) > 90 && Math.abs(lon) <= 90) [lat, lon] = [lon, lat];
+  if (lat <= -60 && lat >= -95 && lon >= -6 && lon <= 3) [lat, lon] = [lon, lat]; // invertidas (Ecuador)
+  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+  if (Math.abs(lat) < 1e-6 && Math.abs(lon) < 1e-6) return null;
+  return [lat, lon];
+}
+
+/* ---------- mapeo de columnas ---------- */
+function detectMapping(headers) {
+  const nh = headers.map(h => ({h, n: norm(h).replace(/[^a-z0-9]/g, "")}));
+  const cand = [];
+  for (const [k, , syns] of FIELDS) for (const {h, n} of nh) {
+    let s = 0;
+    syns.forEach((sy, si) => {
+      const exact = sy.startsWith("="), w = exact ? sy.slice(1) : sy;
+      if (n === w) s = Math.max(s, 200 - si);
+      else if (!exact && w.length >= 4 && n.includes(w)) s = Math.max(s, 100 - si + w.length);
+    });
+    if (s > 0) cand.push({k, h, s});
+  }
+  cand.sort((a, b) => b.s - a.s);
+  const m = {}, used = new Set();
+  for (const c of cand) { if (m[c.k] || used.has(c.h)) continue; m[c.k] = c.h; used.add(c.h); }
+  return m;
+}
+
+/* ---------- estado ---------- */
+let ROWS = [], HEAD = [], MAPF = {}, EV = [], FILT = [], VIEW = [];
+let DMIN = null, DMAX = null, SOURCE = {name: "", sample: true};
+const F0 = () => ({q: "", range: "all", from: "", to: "", groups: new Set([0,1,2,3,4]), modalidad: "", distrito: "", circuito: "", canton: "", arma: "", movilidad: "", victima: "", h0: 0, h1: 23, dows: new Set([0,1,2,3,4,5,6]), geo: "all", cell: ""});
+let F = F0();
+let TS = {key: "t", dir: -1}, TLIM = 50, NGLIM = 12, NGG = -1;
+let SERIES = [], HOTS = [], PAIRS = [], TSB = [];
+
+const STOP = new Set("sobre entre hasta desde donde cuando mientras quien quienes cual cuales porque tambien luego despues antes ademas estaba estaban fueron siendo tenia tenian manifiesta indica senala refiere ciudadano ciudadana persona personas sujetos sujeto mismo misma dicho dicha momento lugar sector calle avenida hacia contra otros otras parte cerca".split(" "));
+function tokens(s) {
+  const out = new Set();
+  for (const w of norm(s).replace(/[^a-z0-9ñ ]/g, " ").split(/\s+/)) if (w.length >= 5 && !STOP.has(w)) { out.add(w); if (out.size >= 80) break; }
+  return out;
+}
+
+function buildEvents() {
+  const get = (r, k) => MAPF[k] != null && MAPF[k] !== "" ? r[MAPF[k]] : "";
+  EV = ROWS.map((r, i) => {
+    const pd = parseDate(get(r, "fecha"));
+    let h = parseHour(get(r, "hora"));
+    if (h == null && pd && pd.h != null) h = pd.h;
+    let c = fixCoords(parseNum(get(r, "lat")), parseNum(get(r, "lon")));
+    if (!c && MAPF.coords) {
+      const m = String(get(r, "coords")).match(/(-?\d+(?:[.,]\d+)?)\s*[;,\s]\s*(-?\d+(?:[.,]\d+)?)/);
+      if (m) c = fixCoords(parseNum(m[1]), parseNum(m[2]));
+    }
+    const s = k => String(get(r, k) ?? "").trim();
+    const delito = s("delito"), modalidad = s("modalidad"), hechos = s("hechos");
+    const delN = norm(delito), modN = norm(modalidad), hecN = norm(hechos).slice(0, 900);
+    const e = {
+      i, r, date: pd ? pd.d : null, t: pd ? pd.d.getTime() : null, h, band: band(h),
+      dow: pd ? (pd.d.getDay() + 6) % 7 : null,
+      lat: c ? c[0] : null, lon: c ? c[1] : null, geo: !!c,
+      delito, modalidad, hechos, distrito: s("distrito"), circuito: s("circuito"), canton: s("canton"), provincia: s("provincia"),
+      arma: s("arma"), victima: s("victima"), movilidad: s("movilidad"), fiscalia: s("fiscalia"), vehiculo: s("vehiculo"), direccion: s("direccion"), id: s("id"),
+      modN, g: classify(delN, modN, hecN)
+    };
+    e.armaN = norm(e.arma);
+    e.fire = /fuego|revolver|pistola|escopeta|fusil|9 ?mm/.test(e.armaN);
+    e.txt = norm(Object.values(r).join(" | "));
+    e.tok = tokens(hechos);
+    if (e.geo) { e.c5 = Math.floor(e.lat / 0.0045) + ":" + Math.floor(e.lon / 0.0045); e.c9 = Math.floor(e.lat / 0.008) + ":" + Math.floor(e.lon / 0.008); }
+    return e;
+  });
+  let lo = Infinity, hi = -Infinity; for (const e of EV) if (e.t != null) { if (e.t < lo) lo = e.t; if (e.t > hi) hi = e.t; }
+  DMIN = isFinite(lo) ? new Date(lo) : null;
+  DMAX = isFinite(hi) ? new Date(hi) : null;
+}
+
+/* ---------- filtrado ---------- */
+function rangeBounds() {
+  if (F.range === "custom") return [F.from ? new Date(F.from + "T00:00").getTime() : -Infinity, F.to ? new Date(F.to + "T00:00").getTime() : Infinity];
+  if (F.range === "all" || !DMAX) return [-Infinity, Infinity];
+  return [DMAX.getTime() - (+F.range - 1) * DAY, DMAX.getTime()];
+}
+function applyFilters() {
+  const [a, b] = rangeBounds();
+  const terms = norm(F.q).split(/\s+/).filter(Boolean);
+  const allH = F.h0 === 0 && F.h1 === 23, allD = F.dows.size === 7, allDate = a === -Infinity && b === Infinity;
+  FILT = EV.filter(e => {
+    if (!F.groups.has(e.g)) return false;
+    if (!allDate && (e.t == null || e.t < a || e.t > b)) return false;
+    if (F.modalidad && e.modalidad !== F.modalidad) return false;
+    if (F.distrito && e.distrito !== F.distrito) return false;
+    if (F.circuito && e.circuito !== F.circuito) return false;
+    if (F.canton && e.canton !== F.canton) return false;
+    if (F.arma && e.arma !== F.arma) return false;
+    if (F.movilidad && e.movilidad !== F.movilidad) return false;
+    if (F.victima && e.victima !== F.victima) return false;
+    if (!allH) { if (e.h == null) return false; if (F.h0 <= F.h1 ? (e.h < F.h0 || e.h > F.h1) : (e.h < F.h0 && e.h > F.h1)) return false; }
+    if (!allD && (e.dow == null || !F.dows.has(e.dow))) return false;
+    if (F.geo === "1" && !e.geo) return false;
+    if (F.geo === "0" && e.geo) return false;
+    if (F.cell && e.c5 !== F.cell) return false;
+    for (const t of terms) if (!e.txt.includes(t)) return false;
+    return true;
+  });
+}
+
+/* ---------- utilidades de conteo ---------- */
+function countBy(list, fn) { const m = new Map(); for (const e of list) { const k = fn(e); if (k === "" || k == null) continue; m.set(k, (m.get(k) || 0) + 1); } return [...m.entries()].sort((a, b) => b[1] - a[1]); }
+function mode(list, fn) { const c = countBy(list, fn); return c.length ? c[0][0] : ""; }
+function geoDist(a, b) { const dx = (b.lon - a.lon) * Math.cos(a.lat * Math.PI / 180) * 111320, dy = (b.lat - a.lat) * 110540; return Math.hypot(dx, dy); }
+function peakWindow(list) {
+  const c = Array(24).fill(0); list.forEach(e => { if (e.h != null) c[e.h]++; });
+  let best = 0, bh = 0; for (let h = 0; h < 24; h++) { const s = c[h] + c[(h + 1) % 24] + c[(h + 2) % 24]; if (s > best) { best = s; bh = h; } }
+  return {h: bh, n: best, total: c.reduce((a, b) => a + b, 0)};
+}
+function trend(list) {
+  const ts = list.filter(e => e.t != null).map(e => e.t); if (!ts.length) return null;
+  let mx = -Infinity; for (const t of ts) if (t > mx) mx = t;
+  const c1 = mx - 29 * DAY, c0 = c1 - 30 * DAY;
+  let a = 0, b = 0; for (const t of ts) { if (t >= c1) a++; else if (t >= c0) b++; }
+  return {now: a, prev: b, ch: b ? Math.round((a - b) / b * 100) : null, mx};
+}
+
+/* ---------- series y hotspots ---------- */
+function detectSeries(list) {
+  const buckets = new Map();
+  for (const e of list) if (e.geo && e.t != null) { const k = e.c9 + "|" + (e.modN || "g" + e.g); (buckets.get(k) || buckets.set(k, []).get(k)).push(e); }
+  const out = [];
+  for (const arr of buckets.values()) {
+    if (arr.length < 3) continue;
+    arr.sort((a, b) => a.t - b.t);
+    let run = [arr[0]];
+    const flush = () => {
+      if (run.length >= 3) {
+        const bc = countBy(run, e => e.band), db = bc.length ? bc[0] : [null, 0];
+        const span = Math.round((run[run.length - 1].t - run[0].t) / DAY) + 1;
+        const share = db[1] / run.length;
+        out.push({ev: run.slice(), n: run.length, span, band: db[0], share, mod: run[0].modalidad || GROUPS[run[0].g].name, dist: mode(run, e => e.distrito) || mode(run, e => e.canton), g: run[0].g, dow: mode(run, e => e.dow), score: run.length * (0.6 + share) / Math.sqrt(1 + span / 30)});
+      }
+    };
+    for (let j = 1; j < arr.length; j++) { if (arr[j].t - arr[j - 1].t <= 21 * DAY) run.push(arr[j]); else { flush(); run = [arr[j]]; } }
+    flush();
+  }
+  return out.sort((a, b) => b.score - a.score).slice(0, 10);
+}
+function detectHots(list) {
+  const m = new Map();
+  for (const e of list) if (e.geo) (m.get(e.c5) || m.set(e.c5, []).get(e.c5)).push(e);
+  const tr = trend(list);
+  return [...m.entries()].map(([k, ev]) => {
+    let a = 0, b = 0;
+    if (tr) { const c1 = tr.mx - 29 * DAY, c0 = c1 - 30 * DAY; ev.forEach(e => { if (e.t >= c1) a++; else if (e.t != null && e.t >= c0) b++; }); }
+    return {k, ev, n: ev.length, now: a, prev: b, dist: mode(ev, e => e.distrito), circ: mode(ev, e => e.circuito), g: mode(ev, e => e.g), mod: mode(ev, e => e.modalidad)};
+  }).sort((a, b) => b.n - a.n).slice(0, 8);
+}
+
+/* ---------- casos relacionados ---------- */
+function related(e) {
+  const out = [];
+  for (const o of EV) {
+    if (o === e) continue;
+    let s = 0; const why = [];
+    if (e.fiscalia && o.fiscalia && e.fiscalia === o.fiscalia) { s += 50; why.push("Mismo Nº fiscal"); }
+    if (e.vehiculo && o.vehiculo && norm(e.vehiculo) === norm(o.vehiculo) && e.vehiculo.length > 4) { s += 40; why.push("Mismo vehículo"); }
+    if (e.geo && o.geo) { const d = geoDist(e, o); if (d < 300) { s += 20; why.push(Math.round(d) + " m"); } else if (d < 1000) { s += 12; why.push((d / 1000).toFixed(1) + " km"); } else if (d < 3000) s += 4; }
+    if (e.modN && e.modN === o.modN) { s += 15; why.push("Misma modalidad"); } else if (e.g === o.g) s += 5;
+    if (e.t != null && o.t != null) { const dd = Math.abs(e.t - o.t) / DAY; if (dd <= 7) { s += 12; why.push(dd < 1 ? "Mismo día" : Math.round(dd) + " días"); } else if (dd <= 30) { s += 6; why.push(Math.round(dd) + " días"); } }
+    if (e.band != null && e.band === o.band) { s += 6; why.push(BANDS[e.band]); }
+    if (!NOARMA.has(e.armaN) && e.armaN === o.armaN) s += 4;
+    if (e.tok.size > 3 && o.tok.size > 3) {
+      let inter = 0; for (const w of e.tok) if (o.tok.has(w)) inter++;
+      const j = inter / (e.tok.size + o.tok.size - inter);
+      if (j >= 0.2) { s += Math.round(j * 35); why.push("Relato " + Math.round(j * 100) + "% similar"); }
+    }
+    if (s >= 38) out.push({o, s, why});
+  }
+  return out.sort((a, b) => b.s - a.s).slice(0, 20);
+}
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+let renderT = 0;
+function render() {
+  applyFilters();
+  sortView();
+  SERIES = detectSeries(FILT);
+  HOTS = detectHots(FILT);
+  renderBanner(); renderKPIs(); renderFind(); renderMap(); renderGroups(); renderBars("cMods", countBy(FILT, e => e.modalidad).slice(0, 10), "modalidad");
+  renderBars("cDist", countBy(FILT, e => e.distrito).slice(0, 10), "distrito"); renderMatrix(); renderTS(); renderSeries(); renderHots(); renderNet(); renderNoGeo(); renderTable(); renderFilterUI();
+}
+const rerender = () => { clearTimeout(renderT); renderT = setTimeout(render, 30); };
+
+function renderBanner() {
+  const b = $("#banner");
+  const keys = ["fecha","hora","delito","modalidad","lat","lon","distrito","hechos","fiscalia"];
+  const chips = keys.map(k => MAPF[k] || (k === "lat" || k === "lon") && MAPF.coords ? `<span title="${esc(MAPF[k] || MAPF.coords)}">${esc(FIELD_NAME[k])}</span>` : `<span class="miss">${esc(FIELD_NAME[k])}: no detectado</span>`).join("");
+  const span = DMIN ? `${fdate(DMIN)} – ${fdate(DMAX)}` : "sin fechas reconocidas";
+  b.innerHTML = SOURCE.sample
+    ? `<p><b>Datos de ejemplo.</b> ${fmt(EV.length)} eventos simulados en Guayaquil, Durán y Samborondón (${span}), con el mismo formato de columnas de una base real. Cargue su archivo para analizar su propia información.<span class="mapchips">${chips}</span></p><button class="btn primary" type="button" data-act="load">Cargar mi Excel</button>`
+    : `<p><b>${esc(SOURCE.name)}</b> · ${fmt(EV.length)} eventos · ${span}<span class="mapchips">${chips}</span></p><button class="btn" type="button" data-act="mapping">Revisar columnas</button>`;
+}
+
+function renderKPIs() {
+  const n = FILT.length, geo = FILT.filter(e => e.geo).length, tr = trend(FILT), pk = peakWindow(FILT);
+  const dist = countBy(FILT, e => e.distrito)[0], fire = FILT.filter(e => e.fire).length;
+  const pkDow = mode(FILT.filter(e => e.h != null && ((e.h - pk.h + 24) % 24) < 3), e => e.dow);
+  const chg = tr && tr.ch != null ? `<span class="${tr.ch > 0 ? "up" : "down"}">${tr.ch > 0 ? "▲" : "▼"} ${Math.abs(tr.ch)} %</span> frente a los 30 previos` : "sin periodo previo";
+  const k = (act, key, val, sub, sm) => `<button class="kpi" type="button" data-act="kpi" data-arg="${act}"><span class="k">${key}</span><span class="v${sm ? " sm" : ""}">${val}</span><span class="s">${sub}</span></button>`;
+  $("#kpis").innerHTML =
+    k("all", "Eventos", fmt(n), n === EV.length ? "toda la base" : `de ${fmt(EV.length)} en la base`) +
+    k("geo", "Georreferenciados", pct(geo, n) + " %", `${fmt(n - geo)} sin coordenadas`) +
+    k("last30", "Últimos 30 días", tr ? fmt(tr.now) : "—", chg) +
+    k("peak", "Franja crítica", pk.total ? `${pad(pk.h)}–${pad((pk.h + 3) % 24)} h` : "—", pk.total ? `${pct(pk.n, pk.total)} % de los eventos${pkDow !== "" ? ", pico los " + DOWP[pkDow] : ""}` : "sin horas", true) +
+    k("dist", "Distrito principal", dist ? esc(cap(dist[0])) : "—", dist ? `${fmt(dist[1])} eventos · ${pct(dist[1], n)} %` : "sin distrito", true) +
+    k("fire", "Con arma de fuego", pct(fire, n) + " %", `${fmt(fire)} eventos`);
+}
+
+function insights() {
+  const n = FILT.length, out = [];
+  if (!EV.length) return [["", "Cargue una base de datos para generar los hallazgos."]];
+  if (!n) return [["", "Ningún evento cumple los filtros actuales. Use <b>Limpiar</b> para volver a ver toda la base."]];
+  const g = countBy(FILT, e => e.g)[0];
+  out.push(["01", `<b>${esc(GROUPS[g[0]].name)}</b> concentra el <b>${pct(g[1], n)} %</b> de los ${fmt(n)} eventos analizados.`]);
+  const pk = peakWindow(FILT);
+  if (pk.total) {
+    const pd = mode(FILT.filter(e => e.h != null && ((e.h - pk.h + 24) % 24) < 3), e => e.dow);
+    out.push(["02", `La franja de mayor ocurrencia es <b>${pad(pk.h)}:00 a ${pad((pk.h + 3) % 24)}:00</b> (${pct(pk.n, pk.total)} % de los eventos con hora)${pd !== "" ? `, con pico los <b>${DOWP[pd]}</b>` : ""}.`]);
+  }
+  const d = countBy(FILT, e => e.distrito);
+  if (d.length) out.push(["03", `<b>${esc(cap(d[0][0]))}</b> es el distrito con más carga: ${fmt(d[0][1])} eventos (${pct(d[0][1], n)} %)${d[1] ? `, seguido de ${esc(cap(d[1][0]))} (${pct(d[1][1], n)} %)` : ""}.`]);
+  const tr = trend(FILT);
+  if (tr && tr.ch != null) out.push(["04", `En los últimos 30 días hubo <b>${fmt(tr.now)}</b> eventos, ${tr.ch > 0 ? "un aumento" : tr.ch < 0 ? "una reducción" : "sin variación"}${tr.ch ? ` del <b>${Math.abs(tr.ch)} %</b>` : ""} frente a los 30 días anteriores.`]);
+  if (SERIES.length) { const s = SERIES[0]; out.push(["05", `Se detectaron <b>${SERIES.length}</b> posibles series. La principal: <b>${esc(cap(s.mod))}</b> en ${esc(cap(s.dist) || "una misma zona")}, ${s.n} eventos en ${s.span} días${s.band != null ? `, ${BANDS[s.band].toLowerCase()}` : ""}.`]); }
+  const m = countBy(FILT, e => e.modalidad)[0];
+  if (m) out.push(["06", `La modalidad más frecuente es <b>${esc(cap(m[0]))}</b> (${fmt(m[1])} eventos). ${pct(FILT.filter(e => e.fire).length, n)} % de los eventos registra arma de fuego.`]);
+  const ng = FILT.filter(e => !e.geo).length;
+  if (ng) out.push(["07", `${fmt(ng)} eventos (${pct(ng, n)} %) no tienen coordenadas válidas y no aparecen en el mapa; se revisan en su propio panel.`]);
+  return out;
+}
+function renderFind() { $("#find").innerHTML = insights().map(([i, t]) => `<li><i>${i}</i><span>${t}</span></li>`).join(""); }
+
+/* ---------- mapa ---------- */
+let MAP = null, BASES = {}, BASE = "osm", MODE = "heat", LAYER = null, tileOK = 0, tileErr = 0, firstFit = true, TILES_DOWN = false;
+const TILE_MSG = "El fondo de calles no está disponible en esta vista (sin internet o bloqueado por el visor). Los eventos se grafican igual sobre la cuadrícula; al abrir la página desde GitHub Pages se ven calles y satélite.";
+function initMap() {
+  if (!window.L) { $("#map").innerHTML = `<div class="empty" style="padding:20px">No se pudo cargar la librería del mapa. Revise su conexión a internet y recargue la página.</div>`; return; }
+  MAP = L.map("map", {preferCanvas: true, zoomControl: true, worldCopyJump: true}).setView([-2.17, -79.9], 11);
+  const mk = (url, attr, opt) => { const l = L.tileLayer(url, Object.assign({maxZoom: 19, attribution: attr, crossOrigin: true}, opt)); l.on("tileload", () => { tileOK++; if (TILES_DOWN) { TILES_DOWN = false; $("#mapNote").hidden = true; } }); l.on("tileerror", () => { tileErr++; }); return l; };
+  BASES = {
+    osm: mk("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", "© OpenStreetMap"),
+    sat: mk("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", "© Esri, Maxar"),
+    dark: mk("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", "© OpenStreetMap © CARTO", {subdomains: "abcd"})
+  };
+  BASES[BASE].addTo(MAP);
+  setTimeout(() => { if (!tileOK) { TILES_DOWN = true; const n = $("#mapNote"); n.hidden = false; n.textContent = TILE_MSG; } }, 5000);
+  new ResizeObserver(() => MAP.invalidateSize()).observe($("#map"));
+}
+function popupHTML(e) {
+  return `<div class="pop-t">${esc(cap(e.delito) || GROUPS[e.g].name)}</div><div class="pop-s">${esc(cap(e.modalidad))}</div><div style="margin:6px 0 8px">${fdate(e.date)} ${e.h != null ? pad(e.h) + ":00" : ""} · ${esc(cap(e.distrito))}</div><button class="btn primary" type="button" data-act="case" data-arg="${e.i}">Abrir expediente</button>`;
+}
+function renderMap() {
+  if (!MAP) return;
+  if (LAYER) { MAP.removeLayer(LAYER); LAYER = null; }
+  const pts = FILT.filter(e => e.geo), col = GHEX();
+  const note = $("#mapNote");
+  note.hidden = !TILES_DOWN; if (TILES_DOWN) note.textContent = TILE_MSG;
+  if (!pts.length && FILT.length) { note.hidden = false; note.textContent = "Ningún evento filtrado tiene coordenadas. Revíselos en el panel «Eventos sin coordenadas»."; }
+  if (MODE === "heat" && L.heatLayer) {
+    LAYER = L.heatLayer(pts.map(e => [e.lat, e.lon, 1]), {radius: 20, blur: 16, maxZoom: 16, minOpacity: .35, gradient: {.2: "#ffe08a", .45: "#f9a03f", .7: "#e2462e", 1: "#8c0d26"}});
+  } else if (MODE === "clu" && L.markerClusterGroup) {
+    LAYER = L.markerClusterGroup({chunkedLoading: true, showCoverageOnHover: false, maxClusterRadius: 50,
+      iconCreateFunction: c => { const n = c.getChildCount(), s = n < 20 ? 34 : n < 200 ? 42 : 52; return L.divIcon({html: `<div><span>${n}</span></div>`, className: "clu", iconSize: L.point(s, s)}); }});
+    LAYER.addLayers(pts.map(e => mkPoint(e, col)));
+  } else {
+    const cap20 = pts.length > 20000 ? pts.filter((_, i) => i % Math.ceil(pts.length / 20000) === 0) : pts;
+    LAYER = L.layerGroup(cap20.map(e => mkPoint(e, col)));
+    if (cap20.length < pts.length) { note.hidden = false; note.textContent = `Modo puntos muestra ${fmt(cap20.length)} de ${fmt(pts.length)} eventos. Los modos Calor y Clústeres grafican todos.`; }
+  }
+  if (LAYER) LAYER.addTo(MAP);
+  renderLegend(pts);
+  if (firstFit && pts.length) { fitTo(pts); firstFit = false; }
+}
+let RENDERER = null;
+function mkPoint(e, col) {
+  RENDERER = RENDERER || L.canvas({padding: .3});
+  const m = L.circleMarker([e.lat, e.lon], {renderer: RENDERER, radius: 5, weight: 1, color: "#fff", fillColor: col[e.g], fillOpacity: .9});
+  m.bindTooltip(`<b>${esc(cap(e.modalidad) || cap(e.delito))}</b><br>${fdate(e.date)} ${e.h != null ? pad(e.h) + ":00" : ""} · ${esc(cap(e.distrito))}`, {direction: "top", offset: [0, -4]});
+  m.bindPopup(() => popupHTML(e));
+  return m;
+}
+function fitTo(list) {
+  if (!MAP || !list.length) return;
+  if (list.length === 1) { MAP.setView([list[0].lat, list[0].lon], 17); return; }
+  MAP.fitBounds(L.latLngBounds(list.map(e => [e.lat, e.lon])), {padding: [30, 30], maxZoom: 16});
+}
+function renderLegend(pts) {
+  const c = countBy(pts, e => e.g);
+  const items = c.map(([g, n]) => `<span class="lg"><i style="background:${gColor(g)}"></i>${esc(GROUPS[g].name)} <span class="num" style="color:var(--muted)">${fmt(n)}</span></span>`).join("");
+  $("#legend").innerHTML = (MODE === "heat" ? `<span class="lg">Densidad <span class="heatbar"></span></span>` : items) + `<span style="margin-left:auto;color:var(--muted)">${fmt(pts.length)} eventos en el mapa</span>`;
+}
+
+/* ---------- barras ---------- */
+function renderGroups() {
+  const c = new Map(countBy(FILT, e => e.g)), max = Math.max(1, ...c.values());
+  $("#cGroups").innerHTML = GROUPS.map((g, i) => {
+    const n = c.get(i) || 0;
+    return `<button class="bar${F.groups.size === 1 && F.groups.has(i) ? " on" : ""}" type="button" data-act="only-g" data-arg="${i}"><span class="l"><span class="gtag"><i style="background:${gColor(i)}"></i>${esc(g.name)}</span></span><span class="n">${fmt(n)} · ${pct(n, FILT.length)} %</span><span class="t"><i style="width:${n / max * 100}%;background:${gColor(i)}"></i></span></button>`;
+  }).join("");
+}
+function renderBars(id, data, key) {
+  const box = document.getElementById(id);
+  if (!data.length) { box.innerHTML = `<div class="empty">Sin datos para este campo. ${MAPF[key] ? "" : "Asigne la columna en «Columnas»."}</div>`; return; }
+  const max = data[0][1];
+  box.innerHTML = data.map(([k, n]) => `<button class="bar${F[key] === k ? " on" : ""}" type="button" data-act="set" data-key="${key}" data-arg="${esc(k)}"><span class="l" title="${esc(k)}">${esc(cap(k))}</span><span class="n">${fmt(n)}</span><span class="t"><i style="width:${n / max * 100}%"></i></span></button>`).join("");
+}
+
+/* ---------- matriz ---------- */
+function renderMatrix() {
+  const m = Array.from({length: 7}, () => Array(24).fill(0)); let mx = 0;
+  FILT.forEach(e => { if (e.dow != null && e.h != null) { m[e.dow][e.h]++; mx = Math.max(mx, m[e.dow][e.h]); } });
+  let html = `<span></span>` + Array.from({length: 24}, (_, h) => `<span class="hd">${h % 3 === 0 ? pad(h) : ""}</span>`).join("");
+  for (let d = 0; d < 7; d++) {
+    html += `<span class="dl">${DOWS[d]}</span>`;
+    for (let h = 0; h < 24; h++) {
+      const v = m[d][h], p = mx ? Math.round(Math.pow(v / mx, .8) * 100) : 0;
+      html += `<button type="button" data-act="cell" data-arg="${d},${h}" title="${DOWL[d]} ${pad(h)}:00 — ${v} eventos" style="background:color-mix(in srgb,var(--heat) ${p}%,var(--surface-2))"></button>`;
+    }
+  }
+  $("#mx").innerHTML = html;
+}
+
+/* ---------- serie temporal ---------- */
+function renderTS() {
+  const box = $("#ts"), list = FILT.filter(e => e.t != null);
+  if (!list.length) { box.innerHTML = `<div class="empty">No hay fechas reconocidas en los eventos filtrados.</div>`; $("#tsHint").textContent = ""; return; }
+  let a = Infinity, b = -Infinity; list.forEach(e => { if (e.t < a) a = e.t; if (e.t > b) b = e.t; });
+  const span = (b - a) / DAY;
+  const unit = span <= 120 ? "día" : span <= 900 ? "semana" : "mes";
+  const keyOf = t => { const d = new Date(t); if (unit === "día") return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); if (unit === "semana") { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate() - (d.getDay() + 6) % 7); return x.getTime(); } return new Date(d.getFullYear(), d.getMonth(), 1).getTime(); };
+  const next = t => { const d = new Date(t); if (unit === "día") return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime(); if (unit === "semana") return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7).getTime(); return new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime(); };
+  const cnt = new Map(); list.forEach(e => { const k = keyOf(e.t); cnt.set(k, (cnt.get(k) || 0) + 1); });
+  TSB = []; for (let t = keyOf(a); t <= b; t = next(t)) TSB.push({t, end: next(t) - DAY, n: cnt.get(t) || 0});
+  $("#tsHint").textContent = `${fmt(list.length)} eventos agrupados por ${unit} · clic en una barra para filtrar ese periodo`;
+  const W = Math.max(320, box.clientWidth || 700), H = 230, L0 = 40, R0 = 14, T0 = 12, B0 = 28;
+  const mx = Math.max(...TSB.map(x => x.n)), step = niceStep(mx), top = Math.ceil(mx / step) * step || 1;
+  const x = i => L0 + (TSB.length === 1 ? (W - L0 - R0) / 2 : i * (W - L0 - R0) / (TSB.length - 1)), y = v => T0 + (H - T0 - B0) * (1 - v / top);
+  let g = "";
+  for (let v = 0; v <= top; v += step) g += `<line class="gridl" x1="${L0}" x2="${W - R0}" y1="${y(v)}" y2="${y(v)}"/><text class="ax" x="${L0 - 6}" y="${y(v) + 4}" text-anchor="end">${v}</text>`;
+  const line = TSB.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.n).toFixed(1)}`).join("");
+  const area = `${line}L${x(TSB.length - 1).toFixed(1)},${y(0)}L${x(0).toFixed(1)},${y(0)}Z`;
+  const lbN = Math.max(1, Math.round(TSB.length / Math.max(2, Math.floor(W / 90))));
+  let lbl = ""; TSB.forEach((p, i) => { if (i % lbN === 0) { const d = new Date(p.t); lbl += `<text class="ax" x="${x(i)}" y="${H - 8}" text-anchor="middle">${unit === "mes" ? pad(d.getMonth() + 1) + "/" + String(d.getFullYear()).slice(2) : pad(d.getDate()) + "/" + pad(d.getMonth() + 1)}</text>`; } });
+  const bw = (W - L0 - R0) / Math.max(1, TSB.length);
+  const hits = TSB.map((p, i) => `<rect class="tshit" data-act="ts" data-arg="${i}" x="${x(i) - bw / 2}" y="${T0}" width="${bw}" height="${H - T0 - B0}"><title>${fdate(new Date(p.t))}${unit !== "día" ? " (" + unit + ")" : ""}: ${p.n} eventos</title></rect>`).join("");
+  const li = TSB.length - 1, last = TSB[li];
+  box.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Eventos por ${unit}">${g}<path class="tsarea" d="${area}"/><path class="tsline" d="${line}"/><circle class="tsdot" cx="${x(li)}" cy="${y(last.n)}" r="4"/><text class="ax" x="${Math.min(x(li), W - R0 - 4)}" y="${Math.max(y(last.n) - 9, 10)}" text-anchor="end" style="fill:var(--ink)">${last.n}</text>${lbl}${hits}</svg>`;
+}
+function niceStep(mx) { if (mx <= 5) return 1; const raw = mx / 4, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p; }
+
+/* ---------- series / hotspots ---------- */
+function renderSeries() {
+  const box = $("#series");
+  if (!SERIES.length) { box.innerHTML = `<div class="empty">No se detectan series con los filtros actuales (se requieren al menos 3 eventos con el mismo modus en la misma zona).</div>`; return; }
+  box.innerHTML = SERIES.map((s, i) => {
+    const lv = s.n >= 8 ? ["hi", "Alta"] : s.n >= 5 ? ["md", "Media"] : ["lo", "Baja"];
+    return `<button class="row" type="button" data-act="series" data-arg="${i}"><span class="rk">${i + 1}</span><span><span class="tt"><span class="sev ${lv[0]}">${lv[1]}</span>${esc(cap(s.mod))}</span><br><span class="ss"><span class="gtag"><i style="background:${gColor(s.g)}"></i>${esc(cap(s.dist) || "Zona sin distrito")}</span> · ${s.span} días${s.band != null ? " · " + BANDS[s.band].toLowerCase() + " " + Math.round(s.share * 100) + " %" : ""}${s.dow !== "" ? " · " + DOWL[s.dow] : ""}</span></span><span class="nn">${s.n}<small>eventos</small></span></button>`;
+  }).join("");
+}
+function renderHots() {
+  const box = $("#hots");
+  if (!HOTS.length) { box.innerHTML = `<div class="empty">Sin eventos georreferenciados.</div>`; return; }
+  box.innerHTML = HOTS.map((h, i) => {
+    const ch = h.prev ? Math.round((h.now - h.prev) / h.prev * 100) : (h.now ? null : 0);
+    const tr = ch == null ? `<span class="up">nuevo</span>` : ch > 0 ? `<span class="up">▲ ${ch} %</span>` : ch < 0 ? `<span class="down">▼ ${Math.abs(ch)} %</span>` : `<span>estable</span>`;
+    return `<button class="row" type="button" data-act="hot" data-arg="${i}"><span class="rk">${i + 1}</span><span><span class="tt">${esc(cap(h.circ) || cap(h.dist) || "Celda " + h.k)}</span><br><span class="ss">${esc(cap(h.dist))}${h.dist ? " · " : ""}${esc(cap(h.mod))} · ${tr}</span></span><span class="nn">${h.n}<small>eventos</small></span></button>`;
+  }).join("");
+}
+
+/* ---------- red modalidad ↔ distrito ---------- */
+function renderNet() {
+  const box = $("#net");
+  const mods = countBy(FILT, e => e.modalidad).slice(0, 7).map(x => x[0]), dists = countBy(FILT, e => e.distrito).slice(0, 7).map(x => x[0]);
+  if (!mods.length || !dists.length) { box.innerHTML = `<div class="empty">Se necesitan las columnas de modalidad y distrito.</div>`; return; }
+  const pm = new Map();
+  FILT.forEach(e => { const a = mods.indexOf(e.modalidad), b = dists.indexOf(e.distrito); if (a < 0 || b < 0) return; const k = a + "|" + b; pm.set(k, (pm.get(k) || 0) + 1); });
+  PAIRS = [...pm.entries()].map(([k, n]) => { const [a, b] = k.split("|").map(Number); return {a, b, n, mod: mods[a], dist: dists[b]}; });
+  const W = Math.max(340, box.clientWidth || 500), rowH = 34, H = Math.max(mods.length, dists.length) * rowH + 16;
+  const lw = Math.min(150, W * .32), x1 = lw + 6, x2 = W - lw - 6, mx = Math.max(...PAIRS.map(p => p.n));
+  const yA = i => 16 + i * rowH + (Math.max(mods.length, dists.length) - mods.length) * rowH / 2;
+  const yB = i => 16 + i * rowH + (Math.max(mods.length, dists.length) - dists.length) * rowH / 2;
+  const trunc = (s, n) => { s = cap(s); return s.length > n ? s.slice(0, n - 1) + "…" : s; };
+  const nch = Math.floor(lw / 7);
+  const mg = mods.map(m => mode(FILT.filter(e => e.modalidad === m), e => e.g));
+  let p = PAIRS.sort((a, b) => a.n - b.n).map((q, i) => { const ya = yA(q.a), yb = yB(q.b), mid = (x1 + x2) / 2; return `<path class="net-p" data-act="pair" data-arg="${i}" d="M${x1},${ya} C${mid},${ya} ${mid},${yb} ${x2},${yb}" style="stroke:${gColor(mg[q.a])};stroke-width:${Math.max(1.5, q.n / mx * 16)}"><title>${esc(cap(q.mod))} → ${esc(cap(q.dist))}: ${q.n} eventos</title></path>`; }).join("");
+  const la = mods.map((m, i) => `<text class="net-l" x="${x1 - 8}" y="${yA(i) + 4}" text-anchor="end"><title>${esc(m)}</title>${esc(trunc(m, nch))}</text><circle cx="${x1}" cy="${yA(i)}" r="4" style="fill:${gColor(mg[i])}"/>`).join("");
+  const lb = dists.map((d, i) => `<text class="net-l" x="${x2 + 8}" y="${yB(i) + 4}"><title>${esc(d)}</title>${esc(trunc(d, nch))}</text><circle cx="${x2}" cy="${yB(i)}" r="4" style="fill:var(--ink)"/>`).join("");
+  box.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Relación entre modalidades y distritos">${p}${la}${lb}</svg>`;
+}
+
+/* ---------- sin coordenadas ---------- */
+function renderNoGeo() {
+  const ng = FILT.filter(e => !e.geo), card = $("#noGeoCard");
+  card.hidden = !ng.length;
+  if (!ng.length) return;
+  $("#ngHint").textContent = `${fmt(ng.length)} eventos conservan todos sus datos pero no se pueden ubicar`;
+  const c = countBy(ng, e => e.g);
+  $("#ngChips").innerHTML = `<button class="chip" type="button" data-act="ngg" data-arg="-1" aria-pressed="${NGG === -1}">Todos ${fmt(ng.length)}</button>` + c.map(([g, n]) => `<button class="chip" type="button" data-act="ngg" data-arg="${g}" aria-pressed="${NGG === -1 || NGG === g}"><span class="dot" style="background:${gColor(g)}"></span>${esc(GROUPS[g].name)} ${fmt(n)}</button>`).join("");
+  const list = NGG === -1 ? ng : ng.filter(e => e.g === NGG);
+  $("#ngList").innerHTML = list.slice(0, NGLIM).map(rowHTML).join("");
+  $("#ngMore").innerHTML = list.length > NGLIM ? `<button class="btn" type="button" data-act="ngmore">Mostrar más (${fmt(list.length - NGLIM)} restantes)</button>` : "";
+}
+function rowHTML(e) {
+  return `<button class="row" type="button" data-act="case" data-arg="${e.i}"><span class="gtag"><i style="background:${gColor(e.g)};width:10px;height:10px"></i></span><span><span class="tt">${esc(cap(e.delito) || GROUPS[e.g].name)}${e.modalidad ? " · " + esc(cap(e.modalidad)) : ""}</span><br><span class="ss">${fdate(e.date)}${e.h != null ? " " + pad(e.h) + ":00" : ""} · ${esc(cap(e.distrito) || cap(e.canton) || "sin distrito")}${e.fiscalia ? " · " + esc(e.fiscalia) : ""}</span></span><span class="ss">${e.geo ? "📍" : ""}</span></button>`;
+}
+
+/* ---------- tabla ---------- */
+const COLS = [["t", "Fecha"], ["h", "Hora"], ["g", "Grupo"], ["delito", "Delito / modalidad"], ["distrito", "Distrito / circuito"], ["arma", "Arma"], ["fiscalia", "Nº fiscal"], ["geo", "Ubicación"]];
+function sortView() {
+  const k = TS.key, d = TS.dir;
+  VIEW = FILT.slice().sort((a, b) => {
+    let x = a[k], y = b[k];
+    if (x == null || x === "") return 1; if (y == null || y === "") return -1;
+    if (typeof x === "string") return x.localeCompare(y, "es") * d;
+    return (x - y) * d;
+  });
+}
+function renderTable() {
+  $("#tHead").innerHTML = COLS.map(([k, l]) => `<th data-act="sort" data-arg="${k}"${TS.key === k ? ` aria-sort="${TS.dir > 0 ? "ascending" : "descending"}"` : ""}>${l}</th>`).join("");
+  $("#tHint").textContent = `${fmt(VIEW.length)} eventos · clic en una fila para abrir el expediente`;
+  $("#tBody").innerHTML = VIEW.slice(0, TLIM).map(e => `<tr data-act="case" data-arg="${e.i}"><td class="num">${fdate(e.date)}</td><td class="num">${e.h != null ? pad(e.h) + ":00" : "—"}</td><td><span class="gtag"><i style="background:${gColor(e.g)}"></i>${esc(GROUPS[e.g].name)}</span></td><td>${esc(cap(e.delito))}<div class="sub">${esc(cap(e.modalidad))}</div></td><td>${esc(cap(e.distrito))}<div class="sub">${esc(cap(e.circuito))}</div></td><td>${esc(cap(e.arma))}</td><td class="mono">${esc(e.fiscalia)}</td><td>${e.geo ? `<span class="geo-y mono">${e.lat.toFixed(4)}, ${e.lon.toFixed(4)}</span>` : `<span class="geo-n">sin coordenadas</span>`}</td></tr>`).join("") || `<tr><td colspan="8" class="empty">Sin eventos.</td></tr>`;
+  $("#tMore").innerHTML = VIEW.length > TLIM ? `<button class="btn" type="button" data-act="tmore">Mostrar más (${fmt(VIEW.length - TLIM)} restantes)</button>` : "";
+}
+
+/* ---------- interfaz de filtros ---------- */
+function fillSelect(id, key, label) {
+  const s = document.getElementById(id), c = countBy(EV, e => e[key]);
+  s.innerHTML = `<option value="">${label} (${c.length})</option>` + c.map(([k, n]) => `<option value="${esc(k)}">${esc(cap(k))} · ${fmt(n)}</option>`).join("");
+  s.value = F[key]; s.disabled = !c.length;
+}
+function setupFilterUI() {
+  fillSelect("sMod", "modalidad", "Todas"); fillSelect("sDist", "distrito", "Todos"); fillSelect("sCircuito", "circuito", "Todos"); fillSelect("sCanton", "canton", "Todos");
+  fillSelect("sArma", "arma", "Todas"); fillSelect("sMov", "movilidad", "Todas"); fillSelect("sVic", "victima", "Todas");
+  $("#segDow").innerHTML = DOWS.map((d, i) => `<button type="button" data-d="${i}" aria-pressed="true">${d}</button>`).join("");
+  const sug = ["moto", "arma de fuego", "celular", "bus", "banco", "vacuna", "local"].filter(w => EV.some(e => e.txt.includes(w))).slice(0, 6);
+  $("#qSug").innerHTML = sug.map(w => `<button class="chip" type="button" data-act="q" data-arg="${w}">${w}</button>`).join("");
+  if (DMIN) { $("#dFrom").min = $("#dTo").min = iso(DMIN); $("#dFrom").max = $("#dTo").max = iso(DMAX); }
+}
+function renderFilterUI() {
+  const gc = new Map(countBy(EV, e => e.g));
+  $("#gTog").innerHTML = GROUPS.map((g, i) => `<button type="button" data-act="tog-g" data-arg="${i}" aria-pressed="${F.groups.has(i)}"><span class="sw" style="background:${gColor(i)}"></span><span>${esc(g.name)}</span><span class="num" style="color:var(--muted);font-size:12px">${fmt(gc.get(i) || 0)}</span></button>`).join("");
+  document.querySelectorAll("#segRange button").forEach(b => b.setAttribute("aria-pressed", b.dataset.r === F.range));
+  document.querySelectorAll("#segDow button").forEach(b => b.setAttribute("aria-pressed", F.dows.has(+b.dataset.d)));
+  document.querySelectorAll("#segGeo button").forEach(b => b.setAttribute("aria-pressed", b.dataset.g === F.geo));
+  $("#h0").value = F.h0; $("#h1").value = F.h1; $("#hrLbl").textContent = `${pad(F.h0)}:00–${pad(F.h1)}:59`;
+  if (F.range !== "custom") { const [a, b] = rangeBounds(); $("#dFrom").value = isFinite(a) ? iso(new Date(a)) : ""; $("#dTo").value = isFinite(b) ? iso(new Date(b)) : ""; }
+  for (const [id, k] of [["sMod", "modalidad"], ["sDist", "distrito"], ["sCircuito", "circuito"], ["sCanton", "canton"], ["sArma", "arma"], ["sMov", "movilidad"], ["sVic", "victima"]]) document.getElementById(id).value = F[k];
+  if (document.activeElement !== $("#q") && $("#q").value !== F.q) $("#q").value = F.q;
+  const act = [];
+  if (F.q) act.push(["q", `“${F.q}”`]);
+  if (F.range !== "all") act.push(["range", F.range === "custom" ? `${F.from || "…"} → ${F.to || "…"}` : `Últimos ${F.range} d`]);
+  if (F.groups.size < 5) act.push(["groups", `${F.groups.size} de 5 grupos`]);
+  for (const k of ["modalidad", "distrito", "circuito", "canton", "arma", "movilidad", "victima"]) if (F[k]) act.push([k, cap(F[k])]);
+  if (F.h0 !== 0 || F.h1 !== 23) act.push(["hours", `${pad(F.h0)}–${pad(F.h1)} h`]);
+  if (F.dows.size < 7) act.push(["dows", [...F.dows].sort().map(d => DOWS[d]).join(", ")]);
+  if (F.geo !== "all") act.push(["geo", F.geo === "1" ? "Con coordenadas" : "Sin coordenadas"]);
+  if (F.cell) act.push(["cell", "Punto caliente"]);
+  $("#activeF").innerHTML = act.map(([k, l]) => `<button class="chip" type="button" data-act="unf" data-arg="${k}" title="Quitar filtro">${esc(l)} ✕</button>`).join("");
+  $("#fCount").textContent = act.length ? `(${act.length})` : "";
+}
+function unfilter(k) {
+  const z = F0();
+  if (k === "hours") { F.h0 = 0; F.h1 = 23; }
+  else if (k === "range") { F.range = "all"; F.from = F.to = ""; }
+  else F[k] = z[k];
+}
+
+/* =====================================================================
+   MODALES
+   ===================================================================== */
+const layer = $("#layer");
+let MODAL = null;
+function openModal(html, cls = "") {
+  layer.innerHTML = `<div class="ov" data-ov="1"><div class="sheet ${cls}" role="dialog" aria-modal="true">${html}</div></div>`;
+  MODAL = layer.firstElementChild;
+  const f = MODAL.querySelector("[data-autofocus]") || MODAL.querySelector("button");
+  if (f) f.focus();
+}
+function closeModal() { layer.innerHTML = ""; MODAL = null; CASE = null; HIST = []; }
+
+/* lista de eventos */
+let LIST = null;
+function openList(title, items, sub = "", lim = 60) {
+  LIST = {title, items, sub, lim};
+  openModal(`<div class="sh-h"><div><h3>${esc(title)}</h3><div class="sub">${fmt(items.length)} eventos${sub ? " · " + esc(sub) : ""}</div></div><button class="btn ghost x" type="button" data-act="close" aria-label="Cerrar">✕</button></div>
+  <div class="sh-b"><div class="rows">${items.slice(0, lim).map(rowHTML).join("") || `<div class="empty">Sin eventos.</div>`}</div>${items.length > lim ? `<div class="more"><button class="btn" type="button" data-act="lmore">Mostrar más (${fmt(items.length - lim)})</button></div>` : ""}</div>
+  <div class="sh-f"><button class="btn" type="button" data-act="lfit">Ver en el mapa</button><span class="sp"></span><button class="btn" type="button" data-act="lexp" data-arg="csv">Descargar CSV</button><button class="btn" type="button" data-act="lexp" data-arg="copy">Copiar CSV</button></div>`);
+}
+
+/* expediente */
+let CASE = null, HIST = [];
+function openCase(i, push = true) {
+  const e = EV[i]; if (!e) return;
+  if (push && CASE != null && CASE !== i) HIST.push(CASE);
+  CASE = i;
+  const pos = VIEW.indexOf(e);
+  const head = `<div class="sh-h"><div style="min-width:0"><div class="sub"><span class="gtag"><i style="background:${gColor(e.g)}"></i>${esc(GROUPS[e.g].name)}</span>${e.fiscalia ? ` · <span class="mono">${esc(e.fiscalia)}</span>` : ""} · fila ${e.i + 2} del Excel</div><h3>${esc(cap(e.delito) || "Evento")}${e.modalidad ? " · " + esc(cap(e.modalidad)) : ""}</h3><div class="sub">${fdate(e.date)}${e.h != null ? " · " + pad(e.h) + ":00 (" + BANDS[e.band].toLowerCase() + ")" : ""} · ${esc(cap(e.distrito) || cap(e.canton) || "sin distrito")}</div></div><button class="btn ghost x" type="button" data-act="close" aria-label="Cerrar">✕</button></div>`;
+  const tabs = [["res", "Resumen"], ["rel", "Relacionados"], ["nar", "Relato"], ["raw", "Registro Excel"]];
+  openModal(`${head}<div class="tabs" role="tablist">${tabs.map(([k, l], j) => `<button type="button" role="tab" data-act="tab" data-arg="${k}" aria-selected="${j === 0}">${l}</button>`).join("")}</div><div class="sh-b" id="caseBody"></div>
+  <div class="sh-f">${HIST.length ? `<button class="btn" type="button" data-act="back">← Caso anterior</button>` : ""}<button class="btn" type="button" data-act="nav" data-arg="-1"${pos <= 0 ? " disabled" : ""}>‹ Anterior</button><button class="btn" type="button" data-act="nav" data-arg="1"${pos < 0 || pos >= VIEW.length - 1 ? " disabled" : ""}>Siguiente ›</button><span class="sp"></span>${e.geo ? `<button class="btn primary" type="button" data-act="goto" data-arg="${e.i}">Ver en el mapa</button>` : ""}</div>`);
+  caseTab("res");
+}
+function caseTab(k) {
+  const e = EV[CASE], body = $("#caseBody"); if (!e || !body) return;
+  MODAL.querySelectorAll(".tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.arg === k));
+  if (k === "res") {
+    const kv = [["Fecha", fdate(e.date)], ["Hora", e.h != null ? pad(e.h) + ":00" : ""], ["Día", e.dow != null ? cap(DOWL[e.dow]) : ""], ["Provincia", cap(e.provincia)], ["Cantón", cap(e.canton)], ["Distrito", cap(e.distrito)], ["Circuito", cap(e.circuito)], ["Dirección", e.direccion], ["Coordenadas", e.geo ? `${e.lat.toFixed(6)}, ${e.lon.toFixed(6)}` : "Sin coordenadas válidas"], ["Arma", cap(e.arma)], ["Víctima", cap(e.victima)], ["Movilidad", cap(e.movilidad)], ["Vehículo / placa", e.vehiculo], ["Nº fiscalía / NDD", e.fiscalia], ["Identificador", e.id]].filter(x => x[1]);
+    const rel = related(e).slice(0, 3);
+    body.innerHTML = `<dl class="kv">${kv.map(([a, b]) => `<div><dt>${a}</dt><dd>${esc(b)}</dd></div>`).join("")}</dl>${e.hechos ? `<h3 style="font-size:15px;text-transform:uppercase;letter-spacing:.06em;margin:18px 0 8px">Relato</h3><div class="narr">${esc(e.hechos.length > 420 ? e.hechos.slice(0, 420) + "…" : e.hechos)}</div>` : ""}${rel.length ? `<h3 style="font-size:15px;text-transform:uppercase;letter-spacing:.06em;margin:18px 0 4px">Casos más asociables</h3>${relRows(rel)}<div class="more"><button class="btn" type="button" data-act="tab" data-arg="rel">Ver todos los relacionados</button></div>` : ""}`;
+  } else if (k === "rel") {
+    const rel = related(e);
+    body.innerHTML = rel.length ? `<p class="sub" style="margin:0 0 8px;color:var(--muted);font-size:12.5px">Puntaje combinado de cercanía geográfica, modalidad, fecha, franja horaria, Nº fiscal, vehículo y similitud del relato. Se muestran los de 38 puntos o más.</p>${relRows(rel)}` : `<div class="empty">No hay casos con suficiente afinidad (proximidad, modus, fecha o relato).</div>`;
+  } else if (k === "nar") {
+    const kws = GROUPS.flatMap(g => g.kw).filter(w => w.length > 3);
+    let t = esc(e.hechos || "Sin relato registrado.");
+    if (e.hechos) { const re = new RegExp("(" + kws.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|") + ")", "gi"); t = t.replace(re, "<mark>$1</mark>"); }
+    body.innerHTML = `<div class="narr">${t}</div><p style="color:var(--muted);font-size:12px;margin-top:8px">Resaltadas: palabras del léxico tipológico usadas para clasificar el evento.</p>`;
+  } else {
+    body.innerHTML = `<table class="raw"><tbody>${HEAD.map(h => `<tr><td>${esc(h)}</td><td>${esc(e.r[h])}</td></tr>`).join("")}</tbody></table>`;
+  }
+}
+function relRows(rel) {
+  return `<div class="rows">${rel.map(({o, s, why}) => `<button class="row" type="button" data-act="case" data-arg="${o.i}"><span class="score">${s}</span><span><span class="tt">${esc(cap(o.delito))}${o.modalidad ? " · " + esc(cap(o.modalidad)) : ""}</span><br><span class="ss">${fdate(o.date)}${o.h != null ? " " + pad(o.h) + ":00" : ""} · ${esc(cap(o.distrito))}</span><span class="why">${why.map(w => `<span>${esc(w)}</span>`).join("")}</span></span><span class="ss">›</span></button>`).join("")}</div>`;
+}
+
+/* mapeo de columnas */
+function openMapping() {
+  const opts = h => `<option value="">— sin asignar —</option>` + HEAD.map(x => `<option value="${esc(x)}"${x === h ? " selected" : ""}>${esc(x)}</option>`).join("");
+  const sample = h => { if (!h) return ""; const r = ROWS.find(r => r[h] !== "" && r[h] != null); return r ? String(r[h]).slice(0, 40) : ""; };
+  openModal(`<div class="sh-h"><div><h3>Mapeo de columnas</h3><div class="sub">${HEAD.length} columnas en el archivo · se detectaron ${Object.keys(MAPF).length} campos automáticamente</div></div><button class="btn ghost x" type="button" data-act="close" aria-label="Cerrar">✕</button></div>
+  <div class="sh-b"><div class="tbl-wrap"><table class="map-tbl"><thead><tr><th>Campo GEODELITO</th><th>Columna del archivo</th><th>Ejemplo</th></tr></thead><tbody>${FIELDS.map(([k, l]) => `<tr><td><b>${l}</b></td><td><select class="inp" data-map="${k}" id="map-${k}">${opts(MAPF[k])}</select></td><td class="mono" style="color:var(--muted)">${esc(sample(MAPF[k]))}</td></tr>`).join("")}</tbody></table></div></div>
+  <div class="sh-f"><button class="btn" type="button" data-act="map-auto">Detectar de nuevo</button><span class="sp"></span><button class="btn" type="button" data-act="close">Cancelar</button><button class="btn primary" type="button" data-act="map-apply">Aplicar y reprocesar</button></div>`);
+}
+
+/* léxico */
+function openLex() {
+  openModal(`<div class="sh-h"><div><h3>Clasificación tipológica</h3><div class="sub">Palabras clave por grupo, separadas por coma. Se buscan en delito (×3), modalidad (×2) y relato (×1); gana el grupo con mayor puntaje.</div></div><button class="btn ghost x" type="button" data-act="close" aria-label="Cerrar">✕</button></div>
+  <div class="sh-b lex">${GROUPS.map((g, i) => `<div class="fg"><label for="lexn${i}"><span class="gtag"><i style="background:${gColor(i)}"></i>Grupo ${i + 1}</span></label><input class="inp" id="lexn${i}" value="${esc(g.name)}">${i < 4 ? `<textarea id="lexk${i}" aria-label="Palabras del grupo ${i + 1}">${esc(g.kw.join(", "))}</textarea>` : `<span style="font-size:12px;color:var(--muted)">Recibe todo lo que no coincide con los grupos anteriores.</span>`}</div>`).join("")}</div>
+  <div class="sh-f"><button class="btn" type="button" data-act="lex-reset">Restaurar</button><span class="sp"></span><button class="btn" type="button" data-act="close">Cancelar</button><button class="btn primary" type="button" data-act="lex-apply">Aplicar</button></div>`);
+}
+const LEX0 = GROUPS.map(g => ({name: g.name, kw: g.kw.slice()}));
+
+function openConfirm() {
+  openModal(`<div class="sh-h"><div><h3>¿Eliminar todo?</h3><div class="sub">Se borran la base cargada, los grupos, el mapa, los análisis y los expedientes de esta sesión. No se puede deshacer.</div></div></div><div class="sh-b"></div>
+  <div class="sh-f"><span class="sp"></span><button class="btn" type="button" data-act="close" data-autofocus>Cancelar</button><button class="btn primary" type="button" data-act="wipe" style="background:var(--bad);border-color:var(--bad)">Sí, eliminar todo</button></div>`, "sm");
+}
+
+/* =====================================================================
+   EXPORTACIÓN
+   ===================================================================== */
+function exportRows(list) {
+  return list.map(e => Object.assign({}, e.r, {GEODELITO_grupo: GROUPS[e.g].name, GEODELITO_lat: e.geo ? +e.lat.toFixed(6) : "", GEODELITO_lon: e.geo ? +e.lon.toFixed(6) : "", GEODELITO_fecha: e.date ? iso(e.date) : "", GEODELITO_hora: e.h ?? ""}));
+}
+function toCSV(list) {
+  const rows = exportRows(list), cols = [...HEAD, "GEODELITO_grupo", "GEODELITO_lat", "GEODELITO_lon", "GEODELITO_fecha", "GEODELITO_hora"];
+  const q = v => { const s = String(v ?? ""); return /[",;\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  return "﻿" + [cols.map(q).join(","), ...rows.map(r => cols.map(c => q(r[c])).join(","))].join("\r\n");
+}
+function download(name, text, mime) {
+  try { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], {type: mime})); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000); toast(`Descargando ${name}. Si no inicia, use «Copiar CSV».`); }
+  catch (err) { toast("La descarga no está permitida en esta vista. Use «Copiar CSV»."); }
+}
+async function copyText(t, ok) {
+  try { await navigator.clipboard.writeText(t); toast(ok); }
+  catch (err) { const ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); toast(ok); } catch (x) { toast("No se pudo copiar automáticamente."); } ta.remove(); }
+}
+function stamp() { const d = new Date(); return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`; }
+function doExport(kind, list = VIEW) {
+  if (!list.length) { toast("No hay eventos para exportar."); return; }
+  if (kind === "csv") download(`GEODELITO_eventos_${stamp()}.csv`, toCSV(list), "text/csv;charset=utf-8");
+  else if (kind === "copy") copyText(toCSV(list).slice(1), `${fmt(list.length)} eventos copiados como CSV.`);
+  else if (kind === "xlsx") {
+    if (!window.XLSX) { toast("La librería de Excel no cargó. Use CSV."); return; }
+    try {
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(exportRows(list)), "Eventos");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Indicador", "Valor"], ...insights().map(([i, t]) => [i, t.replace(/<[^>]+>/g, "")]), [], ["Generado por", "GEODELITO 2.0 · " + DEV], ["Fecha", new Date().toLocaleString("es-EC")]]), "Hallazgos");
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([["Modalidad", "Zona", "Eventos", "Días", "Franja", "Desde", "Hasta"], ...SERIES.map(s => [s.mod, s.dist, s.n, s.span, s.band != null ? BANDS[s.band] : "", fdate(s.ev[0].date), fdate(s.ev[s.ev.length - 1].date)])]), "Series");
+      XLSX.writeFile(wb, `GEODELITO_analisis_${stamp()}.xlsx`);
+      toast("Generando Excel. Si no se descarga, use «Copiar CSV».");
+    } catch (err) { toast("No se pudo generar el Excel en esta vista."); }
+  } else if (kind === "brief") {
+    const txt = `INFORME DE ANÁLISIS DELICTUAL — GEODELITO 2.0\nFuente: ${SOURCE.sample ? "datos de ejemplo" : SOURCE.name}\nFiltros: ${[...$("#activeF").querySelectorAll(".chip")].map(c => c.textContent.replace(" ✕", "")).join("; ") || "ninguno"}\n\nHALLAZGOS\n` + insights().map(([i, t]) => `${i}. ${t.replace(/<[^>]+>/g, "")}`).join("\n") +
+      (SERIES.length ? "\n\nSERIES DETECTADAS\n" + SERIES.map((s, i) => `${i + 1}. ${cap(s.mod)} — ${cap(s.dist)} — ${s.n} eventos en ${s.span} días (${fdate(s.ev[0].date)} a ${fdate(s.ev[s.ev.length - 1].date)})${s.band != null ? ", " + BANDS[s.band].toLowerCase() : ""}`).join("\n") : "") +
+      (HOTS.length ? "\n\nPUNTOS CALIENTES\n" + HOTS.map((h, i) => `${i + 1}. ${cap(h.circ) || cap(h.dist)} (${cap(h.dist)}) — ${h.n} eventos, predomina ${cap(h.mod)}`).join("\n") : "") +
+      `\n\nGenerado el ${new Date().toLocaleString("es-EC")} · GEODELITO 2.0 · Desarrollado por ${DEV}`;
+    copyText(txt, "Informe copiado al portapapeles.");
+  }
+}
+
+/* =====================================================================
+   CARGA DE ARCHIVOS
+   ===================================================================== */
+function busy(on, msg = "Procesando base de datos…") {
+  let b = $("#busy");
+  if (on) { if (!b) { b = document.createElement("div"); b.id = "busy"; b.className = "busy"; document.body.appendChild(b); } b.innerHTML = `<div><span class="spin"></span><span>${esc(msg)}</span></div>`; }
+  else if (b) b.remove();
+}
+let toastT = 0;
+function toast(msg) { let t = $("#toast"); if (!t) { t = document.createElement("div"); t.id = "toast"; t.className = "toast"; t.setAttribute("role", "status"); document.body.appendChild(t); } t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 4200); }
+
+function readFile(file) {
+  return new Promise((res, rej) => {
+    if (!window.XLSX) return rej(new Error("No se cargó la librería de Excel. Revise su conexión a internet."));
+    const isText = /\.(csv|txt)$/i.test(file.name), fr = new FileReader();
+    fr.onerror = () => rej(new Error("No se pudo leer el archivo."));
+    fr.onload = () => {
+      try {
+        let wb;
+        if (isText) {
+          const txt = String(fr.result), first = txt.split(/\r?\n/)[0] || "";
+          wb = XLSX.read(txt, {type: "string", raw: false, FS: (first.split(";").length > first.split(",").length ? ";" : ",")});
+        } else wb = XLSX.read(new Uint8Array(fr.result), {type: "array"});
+        let best = null;
+        for (const n of wb.SheetNames) { const rows = XLSX.utils.sheet_to_json(wb.Sheets[n], {defval: "", raw: true}); if (!best || rows.length > best.rows.length) best = {rows, name: n}; }
+        if (!best || !best.rows.length) return rej(new Error("El archivo no tiene filas con datos."));
+        const head = []; const seen = new Set();
+        for (const r of best.rows.slice(0, 200)) for (const k of Object.keys(r)) if (!seen.has(k)) { seen.add(k); head.push(k); }
+        res({rows: best.rows, head, sheet: best.name});
+      } catch (err) { rej(new Error("Formato no reconocido. Guarde el archivo como .xlsx o .csv e intente de nuevo.")); }
+    };
+    isText ? fr.readAsText(file, "utf-8") : fr.readAsArrayBuffer(file);
+  });
+}
+async function loadFile(file, append) {
+  if (!file) return;
+  busy(true, `Leyendo ${file.name}…`);
+  await new Promise(r => setTimeout(r, 30));
+  try {
+    const d = await readFile(file);
+    busy(true, `Procesando ${fmt(d.rows.length)} filas…`);
+    await new Promise(r => setTimeout(r, 30));
+    if (append && !SOURCE.sample && ROWS.length) {
+      const key = r => JSON.stringify(Object.values(r));
+      const have = new Set(ROWS.map(key)); let add = 0;
+      for (const r of d.rows) { const k = key(r); if (!have.has(k)) { ROWS.push(r); have.add(k); add++; } }
+      for (const h of d.head) if (!HEAD.includes(h)) HEAD.push(h);
+      MAPF = Object.assign(detectMapping(HEAD), MAPF);
+      SOURCE.name += ` + ${file.name}`;
+      toast(`${fmt(add)} eventos nuevos agregados (${fmt(d.rows.length - add)} duplicados omitidos).`);
+    } else {
+      ROWS = d.rows; HEAD = d.head; MAPF = detectMapping(HEAD);
+      SOURCE = {name: file.name + (d.sheet ? ` · hoja «${d.sheet}»` : ""), sample: false};
+      toast(`${fmt(ROWS.length)} eventos cargados. Revise «Columnas» si algún campo no se detectó.`);
+    }
+    reprocess(true);
+    if (!MAPF.fecha || !(MAPF.lat || MAPF.coords)) setTimeout(openMapping, 300);
+  } catch (err) { toast(err.message); }
+  busy(false);
+}
+function reprocess(resetFilters) {
+  buildEvents();
+  if (resetFilters) { F = F0(); HIST = []; TLIM = 50; NGLIM = 12; NGG = -1; firstFit = true; }
+  setupFilterUI(); render();
+}
+
+/* =====================================================================
+   DATOS DE EJEMPLO (simulados, semilla fija)
+   ===================================================================== */
+function sampleData() {
+  let s = 20261025; const rnd = () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const pick = a => a[Math.floor(rnd() * a.length)];
+  const wpick = a => { const tot = a.reduce((x, y) => x + y[1], 0); let r = rnd() * tot; for (const [v, w] of a) { if ((r -= w) <= 0) return v; } return a[0][0]; };
+  const gauss = () => (rnd() + rnd() + rnd() - 1.5) / 1.5;
+  const D = [
+    ["NUEVA PROSPERINA", -2.112, -79.957, "GUAYAQUIL", ["MONTE SINAÍ", "SERGIO TORAL", "LA FLORIDA"], 1.4],
+    ["PASCUALES", -2.083, -79.937, "GUAYAQUIL", ["PASCUALES", "VERGELES", "MUCHO LOTE"], 1.2],
+    ["FLORIDA", -2.128, -79.918, "GUAYAQUIL", ["MAPASINGUE", "PROSPERINA", "FLORIDA NORTE"], 1],
+    ["PORTETE", -2.214, -79.926, "GUAYAQUIL", ["CRISTO DEL CONSUELO", "LA CHALA", "TRINITARIA"], 1.1],
+    ["SUR", -2.236, -79.896, "GUAYAQUIL", ["GUASMO NORTE", "GUASMO SUR", "FERTISA"], 1.3],
+    ["9 DE OCTUBRE", -2.191, -79.884, "GUAYAQUIL", ["BAHÍA", "CENTRO", "LAS PEÑAS"], .9],
+    ["ESTEROS", -2.247, -79.906, "GUAYAQUIL", ["ESTEROS", "UNIÓN DE BANANEROS", "PUERTO LISA"], .7],
+    ["CEIBOS", -2.168, -79.946, "GUAYAQUIL", ["LOS CEIBOS", "BELLAVISTA", "COLINAS"], .5],
+    ["MODELO", -2.157, -79.901, "GUAYAQUIL", ["URDESA", "KENNEDY", "ALBORADA"], .9],
+    ["DURÁN", -2.172, -79.836, "DURÁN", ["EL RECREO", "ABEL GILBERT", "PANORAMA"], 1],
+    ["SAMBORONDÓN", -2.143, -79.869, "SAMBORONDÓN", ["LA PUNTILLA", "TORNERO", "BATÁN"], .4]
+  ];
+  const calles = ["la Av. 25 de Julio", "la Av. Casuarina", "la Perimetral", "la calle 29 y Bolivia", "la Av. Francisco de Orellana", "la Av. Domingo Comín", "la Av. Narcisa de Jesús", "el pasaje 12", "la calle Venezuela", "la Av. Las Aguas", "la Av. Juan Tanca Marengo", "la Av. Nicolás Lapentti"];
+  const marcas = ["Samsung", "iPhone", "Xiaomi", "Motorola", "Honor"];
+  const colores = ["negra", "roja", "azul", "blanca", "gris"];
+  const T = [
+    {d: "ROBO", m: "ASALTO", w: 30, arma: [["ARMA DE FUEGO", 6], ["ARMA BLANCA", 3], ["NINGUNA", 1]], mov: [["A PIE", 6], ["EN VEHÍCULO", 2], ["EN MOTO", 1]], hr: [7, 12, 19, 21], f: () => `Ciudadano manifiesta que mientras caminaba por ${pick(calles)} fue interceptado por dos sujetos a bordo de una motocicleta ${pick(colores)}, quienes bajo amenaza con arma le sustrajeron su teléfono celular ${pick(marcas)} y dinero en efectivo, dándose a la fuga con dirección desconocida.`},
+    {d: "ROBO", m: "ARRANCHE", w: 16, arma: [["NINGUNA", 8], ["ARMA BLANCA", 1]], mov: [["A PIE", 7], ["EN BUS", 2]], hr: [8, 13, 18], f: () => `La víctima indica que se encontraba esperando transporte en ${pick(calles)} cuando un sujeto se le acercó corriendo y le arranchó el celular ${pick(marcas)} de las manos, huyendo a pie hacia una calle aledaña.`},
+    {d: "ROBO", m: "ROBO A UNIDADES DE TRANSPORTE", w: 9, arma: [["ARMA DE FUEGO", 7], ["ARMA BLANCA", 3]], mov: [["EN BUS", 1]], hr: [6, 7, 18, 20], f: () => `Pasajeros de un bus urbano de la línea ${Math.floor(rnd() * 140) + 1} denuncian que dos sujetos subieron en ${pick(calles)} y con arma de fuego despojaron a los usuarios de celulares y dinero, bajándose a pocas cuadras.`},
+    {d: "ROBO", m: "ROBO DE MOTOS", w: 9, arma: [["ARMA DE FUEGO", 6], ["NINGUNA", 2]], mov: [["EN MOTO", 1]], hr: [19, 21, 22], f: () => `Ciudadano refiere que circulaba en su motocicleta por ${pick(calles)} cuando fue abordado por sujetos armados que lo obligaron a descender y se llevaron la moto marca ${pick(["Daytona", "Shineray", "Honda", "Suzuki"])} color ${pick(colores)}.`},
+    {d: "ROBO", m: "ROBO A DOMICILIO", w: 8, arma: [["NINGUNA", 6], ["ARMA DE FUEGO", 2]], mov: [["EN DOMICILIO", 1]], hr: [10, 14, 2], f: () => `Propietaria indica que al regresar a su vivienda encontró la puerta forzada y faltaban electrodomésticos, una laptop y joyas. Vecinos observaron a dos sujetos con mochilas salir del inmueble por escalamiento.`},
+    {d: "ROBO", m: "ROBO A UNIDADES ECONÓMICAS", w: 7, arma: [["ARMA DE FUEGO", 8], ["ARMA BLANCA", 2]], mov: [["EN LOCAL COMERCIAL", 1]], hr: [11, 19, 20], f: () => `Administrador de un local comercial en ${pick(calles)} informa que dos sujetos ingresaron simulando ser clientes y con arma de fuego sustrajeron el dinero de la caja y celulares de los empleados.`},
+    {d: "HURTO", m: "DESCUIDO", w: 6, arma: [["NINGUNA", 1]], mov: [["A PIE", 3], ["EN LOCAL COMERCIAL", 2], ["EN BUS", 1]], hr: [10, 12, 16], f: () => `La víctima manifiesta que dejó su bolso sobre la mesa de un local de comidas y al regresar ya no lo encontró; contenía documentos personales y un celular ${pick(marcas)}.`},
+    {d: "ASESINATO", m: "SICARIATO", w: 5, arma: [["ARMA DE FUEGO", 1]], mov: [["A PIE", 3], ["EN VEHÍCULO", 2], ["EN MOTO", 1]], hr: [19, 21, 23, 1], f: () => `Se reporta que un ciudadano fue atacado con arma de fuego por dos sujetos que se movilizaban en motocicleta en ${pick(calles)}. La víctima falleció en el lugar. Se levantaron indicios balísticos calibre 9 mm.`},
+    {d: "LESIONES", m: "RIÑA", w: 4, arma: [["ARMA BLANCA", 4], ["OBJETO CONTUNDENTE", 3], ["NINGUNA", 2]], mov: [["A PIE", 1]], hr: [22, 0, 2], f: () => `Durante una riña en las afueras de un local de diversión en ${pick(calles)}, un ciudadano resultó herido con arma blanca y fue trasladado a una casa de salud.`},
+    {d: "EXTORSIÓN", m: "VACUNA A COMERCIANTES", w: 6, arma: [["NINGUNA", 1]], mov: [["EN LOCAL COMERCIAL", 1]], hr: [9, 11, 15], f: () => `Comerciante denuncia que recibe mensajes y visitas de sujetos que exigen el pago semanal de una "vacuna" para permitirle trabajar; amenazan con atentar contra su local y su familia si no paga.`},
+    {d: "ESTAFA", m: "VENTA EN LÍNEA", w: 4, arma: [["NINGUNA", 1]], mov: [["EN DOMICILIO", 1]], hr: [10, 15, 20], f: () => `La víctima indica que realizó una transferencia bancaria para comprar un celular publicado en redes sociales; tras el pago el vendedor bloqueó su número y nunca entregó el producto.`},
+    {d: "TRÁFICO ILÍCITO DE SUSTANCIAS CATALOGADAS SUJETAS A FISCALIZACIÓN", m: "MICROTRÁFICO", w: 5, arma: [["NINGUNA", 5], ["ARMA DE FUEGO", 1]], mov: [["A PIE", 1]], hr: [16, 20, 22], f: () => `En patrullaje preventivo por ${pick(calles)} se aprehendió a un ciudadano que portaba fundas con sustancia blanquecina presuntamente cocaína y marihuana, dispuestas para su comercialización.`},
+    {d: "TENENCIA Y PORTE DE ARMAS", m: "PORTE ILEGAL DE ARMA", w: 3, arma: [["ARMA DE FUEGO", 1]], mov: [["A PIE", 2], ["EN MOTO", 1]], hr: [21, 23, 1], f: () => `En operativo de control se halló a un ciudadano portando un arma de fuego tipo pistola sin el permiso correspondiente, con cartuchos sin percutir.`},
+    {d: "DAÑO A BIEN AJENO", m: "DAÑO A VEHÍCULO", w: 3, arma: [["OBJETO CONTUNDENTE", 1]], mov: [["EN VEHÍCULO", 1]], hr: [1, 3, 23], f: () => `Propietario indica que encontró su vehículo estacionado con los vidrios rotos y daños en la carrocería en ${pick(calles)}.`}
+  ];
+  const rows = [], N = 1650, END = new Date(2026, 9, 24).getTime();
+  const dW = D.map(d => [d, d[5]]), tW = T.map(t => [t, t.w]);
+  const mkRow = (t, d, date, h, lat, lon, extra) => {
+    const fiscal = "09" + pad(Math.floor(rnd() * 90) + 10) + "0" + "18" + String(Math.floor(rnd() * 9e6) + 1e6);
+    const hasGeo = rnd() > .06;
+    return Object.assign({
+      fecha_infraccion: `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()}`,
+      hora_infraccion: `${pad(h)}:${pad(Math.floor(rnd() * 60))}`,
+      delito: t.d, modalidad: t.m,
+      latitud: hasGeo ? +(lat).toFixed(6) : "", longitud: hasGeo ? +(lon).toFixed(6) : "",
+      provincia: "GUAYAS", canton: d[3], distrito: d[0], circuito: pick(d[4]),
+      hechos: t.f(), arma: wpick(t.arma), victima: rnd() > .42 ? "HOMBRE" : "MUJER", movilidad_victima: wpick(t.mov),
+      fiscalia: fiscal, placa: t.m === "ROBO DE MOTOS" ? `G${String.fromCharCode(65 + Math.floor(rnd() * 26))}${String.fromCharCode(65 + Math.floor(rnd() * 26))}-${String(Math.floor(rnd() * 900) + 100)}` : ""
+    }, extra || {});
+  };
+  for (let i = 0; i < N; i++) {
+    const t = wpick(tW), d = wpick(dW);
+    const date = new Date(END - Math.floor(Math.pow(rnd(), 1.15) * 180) * DAY);
+    const h = (t.hr[Math.floor(rnd() * t.hr.length)] + Math.round(gauss() * 2) + 24) % 24;
+    rows.push(mkRow(t, d, date, h, d[1] + gauss() * .018, d[2] + gauss() * .018));
+  }
+  // series sembradas: patrones reales que el sistema debe encontrar
+  const plant = (ti, di, n, startDaysAgo, every, hours, lat, lon, r) => { for (let k = 0; k < n; k++) { const date = new Date(END - (startDaysAgo - k * every - Math.floor(rnd() * 2)) * DAY); rows.push(mkRow(T[ti], D[di], date, pick(hours), lat + gauss() * r, lon + gauss() * r)); } };
+  plant(3, 0, 11, 52, 4, [20, 21, 22], -2.1065, -79.9612, .0016);
+  plant(9, 1, 8, 40, 5, [9, 10, 11], -2.0868, -79.9341, .0012);
+  plant(2, 3, 9, 33, 3, [6, 7], -2.2108, -79.9284, .0014);
+  plant(4, 8, 6, 60, 8, [10, 11, 14], -2.1489, -79.8995, .001);
+  return rows;
+}
+function loadSample() {
+  ROWS = sampleData(); HEAD = Object.keys(ROWS[0]); MAPF = detectMapping(HEAD);
+  SOURCE = {name: "Datos de ejemplo", sample: true};
+  reprocess(true);
+}
+
+/* =====================================================================
+   EVENTOS DE INTERFAZ
+   ===================================================================== */
+const closeDrawer = () => { $("#filters").classList.remove("open"); $("#scrim").classList.remove("open"); };
+$("#bFilters").onclick = () => { $("#filters").classList.add("open"); $("#scrim").classList.add("open"); };
+$("#scrim").onclick = closeDrawer;
+$("#bLoad").onclick = () => $("#fileMain").click();
+$("#bAdd").onclick = () => SOURCE.sample ? toast("Primero cargue su propia base; luego podrá agregar eventos nuevos.") : $("#fileAdd").click();
+$("#bMap").onclick = openMapping;
+$("#bClear").onclick = openConfirm;
+$("#bTheme").onclick = () => { const r = document.documentElement, dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches; r.dataset.theme = dark ? "light" : "dark"; try { localStorage.setItem("geodelito.theme", r.dataset.theme); } catch (e) {} BASE === "osm" || BASE === "dark" ? setBase(dark ? "osm" : "dark") : null; render(); };
+try { const t = localStorage.getItem("geodelito.theme"); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+$("#fileMain").onchange = e => { loadFile(e.target.files[0], false); e.target.value = ""; };
+$("#fileAdd").onchange = e => { loadFile(e.target.files[0], true); e.target.value = ""; };
+
+let qT = 0;
+$("#q").addEventListener("input", e => { clearTimeout(qT); qT = setTimeout(() => { F.q = e.target.value.trim(); TLIM = 50; render(); }, 220); });
+for (const [id, k] of [["sMod", "modalidad"], ["sDist", "distrito"], ["sCircuito", "circuito"], ["sCanton", "canton"], ["sArma", "arma"], ["sMov", "movilidad"], ["sVic", "victima"]]) document.getElementById(id).addEventListener("change", e => { F[k] = e.target.value; rerender(); });
+$("#h0").addEventListener("input", e => { F.h0 = +e.target.value; rerender(); });
+$("#h1").addEventListener("input", e => { F.h1 = +e.target.value; rerender(); });
+$("#dFrom").addEventListener("change", e => { F.range = "custom"; F.from = e.target.value; F.to = $("#dTo").value; rerender(); });
+$("#dTo").addEventListener("change", e => { F.range = "custom"; F.to = e.target.value; F.from = $("#dFrom").value; rerender(); });
+$("#segRange").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; F.range = b.dataset.r; F.from = F.to = ""; rerender(); });
+$("#segDow").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; const d = +b.dataset.d; if (F.dows.size === 7) F.dows = new Set([d]); else if (F.dows.has(d)) { F.dows.delete(d); if (!F.dows.size) F.dows = new Set([0,1,2,3,4,5,6]); } else F.dows.add(d); rerender(); });
+$("#segGeo").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; F.geo = b.dataset.g; rerender(); });
+$("#segMode").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; MODE = b.dataset.m; document.querySelectorAll("#segMode button").forEach(x => x.setAttribute("aria-pressed", x === b)); renderMap(); });
+function setBase(k) { if (!MAP) return; MAP.removeLayer(BASES[BASE]); BASE = k; BASES[k].addTo(MAP); document.querySelectorAll("#segBase button").forEach(x => x.setAttribute("aria-pressed", x.dataset.b === k)); }
+$("#segBase").addEventListener("click", e => { const b = e.target.closest("button"); if (b) setBase(b.dataset.b); });
+
+document.addEventListener("click", e => {
+  const exm = $("#mExport"); if (exm.open && !e.target.closest("#mExport")) exm.open = false;
+  if (e.target.dataset && e.target.dataset.ov) { closeModal(); return; }
+  const t = e.target.closest("[data-act]"); if (!t) return;
+  const a = t.dataset.act, arg = t.dataset.arg;
+  switch (a) {
+    case "case": openCase(+arg); break;
+    case "close": closeModal(); break;
+    case "tab": caseTab(arg); break;
+    case "back": { const p = HIST.pop(); if (p != null) { CASE = null; openCase(p, false); } break; }
+    case "nav": { const pos = VIEW.indexOf(EV[CASE]) + (+arg); if (VIEW[pos]) { const h = HIST.slice(); openCase(VIEW[pos].i, false); HIST = h; } break; }
+    case "goto": closeModal(); { const ev = EV[+arg]; if (MODE === "heat") { MODE = "pts"; document.querySelectorAll("#segMode button").forEach(x => x.setAttribute("aria-pressed", x.dataset.m === "pts")); renderMap(); } $("#map").scrollIntoView({behavior: "smooth", block: "center"}); fitTo([ev]); setTimeout(() => L.popup().setLatLng([ev.lat, ev.lon]).setContent(popupHTML(ev)).openOn(MAP), 400); } break;
+    case "load": $("#fileMain").click(); break;
+    case "mapping": openMapping(); break;
+    case "reset": F = F0(); TLIM = 50; NGG = -1; render(); break;
+    case "unf": unfilter(arg); render(); break;
+    case "q": F.q = arg; render(); break;
+    case "hq": { const [x, y] = arg.split(",").map(Number); if (F.h0 === x && F.h1 === y) { F.h0 = 0; F.h1 = 23; } else { F.h0 = x; F.h1 = y; } render(); break; }
+    case "tog-g": { const g = +arg; if (F.groups.has(g)) { F.groups.delete(g); if (!F.groups.size) F.groups = new Set([0,1,2,3,4]); } else F.groups.add(g); render(); break; }
+    case "only-g": { const g = +arg; F.groups = F.groups.size === 1 && F.groups.has(g) ? new Set([0,1,2,3,4]) : new Set([g]); render(); break; }
+    case "set": { const k = t.dataset.key; F[k] = F[k] === arg ? "" : arg; render(); break; }
+    case "cell": { const [d, h] = arg.split(",").map(Number); if (F.dows.size === 1 && F.dows.has(d) && F.h0 === h && F.h1 === h) { F.dows = new Set([0,1,2,3,4,5,6]); F.h0 = 0; F.h1 = 23; } else { F.dows = new Set([d]); F.h0 = F.h1 = h; } render(); break; }
+    case "ts": { const b = TSB[+arg]; if (!b) break; F.range = "custom"; F.from = iso(new Date(b.t)); F.to = iso(new Date(b.end)); render(); break; }
+    case "kpi": {
+      if (arg === "all") openList("Eventos filtrados", VIEW);
+      else if (arg === "geo") openList("Eventos sin coordenadas", VIEW.filter(x => !x.geo), "revise latitud y longitud en la base");
+      else if (arg === "last30") { const tr = trend(FILT); if (tr) openList("Últimos 30 días", VIEW.filter(x => x.t != null && x.t >= tr.mx - 29 * DAY)); }
+      else if (arg === "peak") { const pk = peakWindow(FILT); if (pk.total) { F.h0 = pk.h; F.h1 = (pk.h + 2) % 24; render(); toast(`Filtrado a la franja ${pad(pk.h)}:00–${pad((pk.h + 3) % 24)}:00`); } }
+      else if (arg === "dist") { const d = countBy(FILT, x => x.distrito)[0]; if (d) { F.distrito = F.distrito === d[0] ? "" : d[0]; render(); } }
+      else if (arg === "fire") openList("Eventos con arma de fuego", VIEW.filter(x => x.fire));
+      break;
+    }
+    case "series": { const s = SERIES[+arg]; if (s) { openList(`Serie: ${cap(s.mod)}`, s.ev.slice().sort((a, b) => b.t - a.t), `${cap(s.dist)} · ${fdate(s.ev[0].date)} a ${fdate(s.ev[s.ev.length - 1].date)}`); } break; }
+    case "hot": { const h = HOTS[+arg]; if (h) openList(`Punto caliente: ${cap(h.circ) || cap(h.dist)}`, h.ev.slice().sort((a, b) => (b.t || 0) - (a.t || 0)), cap(h.dist)); break; }
+    case "pair": { const p = PAIRS[+arg]; if (p) openList(`${cap(p.mod)} en ${cap(p.dist)}`, VIEW.filter(x => x.modalidad === p.mod && x.distrito === p.dist)); break; }
+    case "lmore": if (LIST) openList(LIST.title, LIST.items, LIST.sub, LIST.lim + 100); break;
+    case "lfit": if (LIST) { const g = LIST.items.filter(x => x.geo); closeModal(); if (g.length) { if (MODE === "heat") { MODE = "pts"; document.querySelectorAll("#segMode button").forEach(x => x.setAttribute("aria-pressed", x.dataset.m === "pts")); renderMap(); } $("#map").scrollIntoView({behavior: "smooth", block: "center"}); fitTo(g); } else toast("Ninguno de estos eventos tiene coordenadas."); } break;
+    case "lexp": if (LIST) doExport(arg, LIST.items); break;
+    case "exp": $("#mExport").open = false; doExport(arg); break;
+    case "fit": fitTo(FILT.filter(x => x.geo)); break;
+    case "sort": TS = TS.key === arg ? {key: arg, dir: -TS.dir} : {key: arg, dir: arg === "t" || arg === "h" ? -1 : 1}; sortView(); renderTable(); break;
+    case "tmore": TLIM += 100; renderTable(); break;
+    case "ngmore": NGLIM += 30; renderNoGeo(); break;
+    case "ngg": NGG = +arg; NGLIM = 12; renderNoGeo(); break;
+    case "map-auto": MAPF = detectMapping(HEAD); closeModal(); openMapping(); break;
+    case "map-apply": { const m = {}; MODAL.querySelectorAll("[data-map]").forEach(s => { if (s.value) m[s.dataset.map] = s.value; }); MAPF = m; closeModal(); busy(true); setTimeout(() => { reprocess(true); busy(false); toast("Columnas aplicadas y base reprocesada."); }, 30); break; }
+    case "lex": closeDrawer(); openLex(); break;
+    case "lex-reset": LEX0.forEach((g, i) => { GROUPS[i].name = g.name; GROUPS[i].kw = g.kw.slice(); }); try { localStorage.removeItem("geodelito.lex"); } catch (x) {} closeModal(); reprocess(false); toast("Léxico restaurado."); break;
+    case "lex-apply": {
+      GROUPS.forEach((g, i) => { g.name = ($("#lexn" + i).value.trim() || g.name); if (i < 4) g.kw = $("#lexk" + i).value.split(",").map(w => norm(w)).filter(Boolean); });
+      try { localStorage.setItem("geodelito.lex", JSON.stringify(GROUPS)); } catch (x) {}
+      closeModal(); reprocess(false); toast("Clasificación actualizada."); break;
+    }
+    case "wipe": closeModal(); ROWS = []; HEAD = []; MAPF = {}; EV = []; F = F0(); HIST = []; SOURCE = {name: "", sample: false}; DMIN = DMAX = null; setupFilterUI(); render(); renderEmpty(); toast("Se eliminó toda la información de la sesión."); break;
+  }
+});
+function renderEmpty() {
+  $("#banner").innerHTML = `<p><b>No hay base cargada.</b> Arrastre aquí un archivo .xlsx, .xls o .csv, o selecciónelo. Se procesa solo en este navegador.</p><button class="btn primary" type="button" data-act="load">Cargar Excel</button><button class="btn" type="button" id="bSample">Ver datos de ejemplo</button>`;
+  $("#bSample").onclick = loadSample;
+}
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") { if (MODAL) closeModal(); else closeDrawer(); }
+  if (MODAL && CASE != null && (e.key === "ArrowRight" || e.key === "ArrowLeft") && !/input|textarea|select/i.test(document.activeElement.tagName)) { const b = MODAL.querySelector(`[data-act="nav"][data-arg="${e.key === "ArrowRight" ? 1 : -1}"]`); if (b && !b.disabled) b.click(); }
+});
+let dragN = 0;
+window.addEventListener("dragenter", e => { if (![...(e.dataTransfer?.types || [])].includes("Files")) return; e.preventDefault(); if (dragN++ === 0) { const d = document.createElement("div"); d.id = "drop"; d.className = "drop"; d.innerHTML = "<div>Suelte el archivo para analizarlo</div>"; document.body.appendChild(d); } });
+window.addEventListener("dragover", e => e.preventDefault());
+window.addEventListener("dragleave", () => { if (--dragN <= 0) { dragN = 0; $("#drop")?.remove(); } });
+window.addEventListener("drop", e => { e.preventDefault(); dragN = 0; $("#drop")?.remove(); const f = e.dataTransfer?.files?.[0]; if (f) loadFile(f, false); });
+let rzT = 0; window.addEventListener("resize", () => { clearTimeout(rzT); rzT = setTimeout(() => { renderTS(); renderNet(); }, 150); });
+
+/* arranque */
+initMap();
+loadSample();
+console.info("GEODELITO 2.0 · Desarrollado por " + DEV);
+</script>
+</body>
+</html>
